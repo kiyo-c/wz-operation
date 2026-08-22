@@ -1,0 +1,108 @@
+{
+  "name": "wz-operation",
+  "displayName": "WZ操作",
+  "description": "WZ Editorの操作感に着想を得たキーボード操作を実現する非公式VS Code拡張です。",
+  "version": "0.2.0",
+  "publisher": "kiyoc",
+  "author": {
+    "name": "kiyoc"
+  },
+  "license": "SEE LICENSE IN LICENSE.txt",
+  "pricing": "Free",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "WZ",
+    "WZ Editor",
+    "keybinding",
+    "keyboard",
+    "F5",
+    "F8",
+    "F9",
+    "word",
+    "selection",
+    "copy",
+    "cut",
+    "paste",
+    "clipboard stack",
+    "Japanese"
+  ],
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1f2430",
+    "theme": "dark"
+  },
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "wzOperation.pickKeywordAndAddSelection",
+        "title": "WZ操作: キーワード取得 + 次の一致も選択"
+      },
+      {
+        "command": "wzOperation.pastePickedKeyword",
+        "title": "WZ操作: 取得したキーワードを貼り付け"
+      },
+      {
+        "command": "wzOperation.cutToStack",
+        "title": "WZ操作: 選択範囲を切り取りしてコピースタックへ追加"
+      },
+      {
+        "command": "wzOperation.copyToStack",
+        "title": "WZ操作: 選択範囲をコピースタックへ追加"
+      },
+      {
+        "command": "wzOperation.pasteAndPopStack",
+        "title": "WZ操作: コピースタックから貼り付けて消費"
+      },
+      {
+        "command": "wzOperation.pasteStack",
+        "title": "WZ操作: コピースタックから貼り付け"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "wzOperation.pickKeywordAndAddSelection",
+        "key": "f5",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "wzOperation.pastePickedKeyword",
+        "key": "shift+f5",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "wzOperation.cutToStack",
+        "key": "f8",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "wzOperation.copyToStack",
+        "key": "shift+f8",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "wzOperation.pasteAndPopStack",
+        "key": "f9",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "wzOperation.pasteStack",
+        "key": "shift+f9",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kiyo-c/wz-operation.git"
+  },
+  "homepage": "https://github.com/kiyo-c/wz-operation#readme",
+  "bugs": {
+    "url": "https://github.com/kiyo-c/wz-operation/issues"
+  }
+}

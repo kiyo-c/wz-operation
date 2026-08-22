@@ -2,7 +2,7 @@
   "name": "wz-operation",
   "displayName": "WZ操作",
   "description": "WZ Editorの操作感に着想を得たキーボード操作を実現する非公式VS Code拡張です。",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "kiyoc",
   "author": {
     "name": "kiyoc"
@@ -13,7 +13,7 @@
     "vscode": "^1.90.0"
   },
   "categories": [
-    "Other"
+    "Keymaps"
   ],
   "keywords": [
     "WZ",

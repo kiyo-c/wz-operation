@@ -1,0 +1,14 @@
+name: Create Open VSX Namespace
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-namespace:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create namespace
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: npx ovsx create-namespace kiyoc

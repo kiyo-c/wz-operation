@@ -7,6 +7,37 @@ const vscode = require('vscode');
 // -----------------------------------------------------------------------------
 // OSクリップボード、F8/F9コピースタックとは完全に独立。
 let pickedKeyword = '';
+let pickedKeywordSelection = undefined;
+
+function selectionKey(selection) {
+  return [
+    selection.anchor.line,
+    selection.anchor.character,
+    selection.active.line,
+    selection.active.character
+  ].join(':');
+}
+
+function rememberPickedKeywordSelection(editor) {
+  pickedKeywordSelection = {
+    document: editor.document,
+    keys: editor.selections.map(selectionKey)
+  };
+}
+
+function hasPickedKeywordSelection(editor) {
+  if (
+    !pickedKeywordSelection ||
+    pickedKeywordSelection.document !== editor.document ||
+    pickedKeywordSelection.keys.length !== editor.selections.length
+  ) {
+    return false;
+  }
+
+  return pickedKeywordSelection.keys.every(
+    (key, index) => key === selectionKey(editor.selections[index])
+  );
+}
 
 // -----------------------------------------------------------------------------
 // F8/F9系: WZ風コピースタック
@@ -143,6 +174,8 @@ async function pickKeywordAndAddSelection() {
     return;
   }
 
+  pickedKeywordSelection = undefined;
+
   // 既存のVS Code機能を直接呼ぶため、キーバインド再帰は起こらない。
   await vscode.commands.executeCommand('editor.action.addSelectionToNextFindMatch');
 
@@ -158,13 +191,15 @@ async function pickKeywordAndAddSelection() {
   const text = editorBefore.document.getText(selection);
   if (text.length > 0) {
     pickedKeyword = text;
+    rememberPickedKeywordSelection(editorBefore);
   }
 }
 
 /**
  * Shift+F5:
  * F5専用バッファのキーワードを現在位置へ挿入。
- * 選択範囲があれば置換し、複数カーソル時は各位置へ挿入する。
+ * F5による選択が残っている場合は、選択を解除してその直後へ挿入する。
+ * それ以外の選択範囲があれば置換し、複数カーソル時は各位置へ挿入する。
  */
 async function pastePickedKeyword() {
   const editor = vscode.window.activeTextEditor;
@@ -176,6 +211,13 @@ async function pastePickedKeyword() {
     vscode.window.setStatusBarMessage('WZ操作: 先にF5でキーワードを取得してください', 2500);
     return;
   }
+
+  if (hasPickedKeywordSelection(editor)) {
+    editor.selections = editor.selections.map(
+      (selection) => new vscode.Selection(selection.end, selection.end)
+    );
+  }
+  pickedKeywordSelection = undefined;
 
   await editor.edit(
     (editBuilder) => {
@@ -225,20 +267,48 @@ async function cutToStack() {
     return;
   }
 
-  let selections = editor.selections.filter((selection) => !selection.isEmpty);
-  const cutsWholeLines = selections.length === 0;
+  const selectedRanges = editor.selections.filter((selection) => !selection.isEmpty);
+  const lineNumbers = new Set();
 
-  if (cutsWholeLines) {
-    const lineNumbers = [...new Set(editor.selections.map((selection) => selection.active.line))];
-    lineNumbers.sort((a, b) => a - b);
-    selections = lineNumbers.map(
-      (lineNumber) => editor.document.lineAt(lineNumber).rangeIncludingLineBreak
+  if (selectedRanges.length === 0) {
+    for (const selection of editor.selections) {
+      lineNumbers.add(selection.active.line);
+    }
+  } else {
+    for (const selection of selectedRanges) {
+      let lastLine = selection.end.line;
+      if (selection.end.character === 0 && lastLine > selection.start.line) {
+        lastLine--;
+      }
+
+      for (let line = selection.start.line; line <= lastLine; line++) {
+        lineNumbers.add(line);
+      }
+    }
+  }
+
+  const sortedLineNumbers = [...lineNumbers].sort((a, b) => a - b);
+  const selections = [];
+
+  for (const lineNumber of sortedLineNumbers) {
+    const previous = selections[selections.length - 1];
+    if (previous && previous.lastLine + 1 === lineNumber) {
+      previous.lastLine = lineNumber;
+      continue;
+    }
+
+    selections.push({ firstLine: lineNumber, lastLine: lineNumber });
+  }
+
+  for (let index = 0; index < selections.length; index++) {
+    const { firstLine, lastLine } = selections[index];
+    selections[index] = new vscode.Range(
+      editor.document.lineAt(firstLine).range.start,
+      editor.document.lineAt(lastLine).rangeIncludingLineBreak.end
     );
   }
 
-  const text = cutsWholeLines
-    ? selections.map((selection) => editor.document.getText(selection)).join('')
-    : getSelectedText(editor, selections);
+  const text = selections.map((selection) => editor.document.getText(selection)).join('');
 
   if (textBytes(text) > MAX_CLIP_ITEM_BYTES) {
     showClipItemTooLargeMessage();

@@ -9,33 +9,25 @@ const vscode = require('vscode');
 let pickedKeyword = '';
 let pickedKeywordSelection = undefined;
 
-function selectionKey(selection) {
-  return [
-    selection.anchor.line,
-    selection.anchor.character,
-    selection.active.line,
-    selection.active.character
-  ].join(':');
-}
-
 function rememberPickedKeywordSelection(editor) {
   pickedKeywordSelection = {
     document: editor.document,
-    keys: editor.selections.map(selectionKey)
+    selections: editor.selections
   };
 }
 
 function hasPickedKeywordSelection(editor) {
+  const currentSelections = editor.selections;
   if (
     !pickedKeywordSelection ||
     pickedKeywordSelection.document !== editor.document ||
-    pickedKeywordSelection.keys.length !== editor.selections.length
+    pickedKeywordSelection.selections.length !== currentSelections.length
   ) {
     return false;
   }
 
-  return pickedKeywordSelection.keys.every(
-    (key, index) => key === selectionKey(editor.selections[index])
+  return pickedKeywordSelection.selections.every(
+    (selection, index) => selection.isEqual(currentSelections[index])
   );
 }
 
@@ -284,11 +276,6 @@ async function cutToStack() {
   const text = cutsWholeLines
     ? selections.map((selection) => editor.document.getText(selection)).join('')
     : getSelectedText(editor, selections);
-
-  if (textBytes(text) > MAX_CLIP_ITEM_BYTES) {
-    showClipItemTooLargeMessage();
-    return;
-  }
 
   // 削除前に保存可能か検証し、容量超過時のデータ消失を防ぐ。
   const item = prepareClipItem(text);

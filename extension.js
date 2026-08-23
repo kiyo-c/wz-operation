@@ -23,9 +23,9 @@ function textBytes(text) {
   return Buffer.byteLength(text, 'utf16le');
 }
 
-function pushClipStack(text) {
+function prepareClipItem(text) {
   if (!text) {
-    return false;
+    return null;
   }
 
   const bytes = textBytes(text);
@@ -34,11 +34,15 @@ function pushClipStack(text) {
       'WZ操作: 選択内容が256 MiBを超えるためコピースタックへ保存できません',
       3000
     );
-    return false;
+    return null;
   }
 
-  clipStack.unshift({ text, bytes });
-  clipStackBytes += bytes;
+  return { text, bytes };
+}
+
+function pushPreparedClipItem(item) {
+  clipStack.unshift(item);
+  clipStackBytes += item.bytes;
 
   // 容量上限を超えたら最古の項目から捨てる。
   while (clipStackBytes > MAX_CLIP_STACK_BYTES && clipStack.length > 0) {
@@ -47,6 +51,15 @@ function pushClipStack(text) {
   }
 
   return true;
+}
+
+function pushClipStack(text) {
+  const item = prepareClipItem(text);
+  if (!item) {
+    return false;
+  }
+
+  return pushPreparedClipItem(item);
 }
 
 function getSelectedText(editor) {
@@ -160,6 +173,12 @@ async function cutToStack() {
     return;
   }
 
+  // Validate before deleting so an oversized selection is never lost.
+  const item = prepareClipItem(text);
+  if (!item) {
+    return;
+  }
+
   const edited = await editor.edit(
     (editBuilder) => {
       for (const selection of selections) {
@@ -174,7 +193,7 @@ async function cutToStack() {
 
   // 編集が成功したときだけスタックへ積む。
   if (edited) {
-    pushClipStack(text);
+    pushPreparedClipItem(item);
   }
 }
 

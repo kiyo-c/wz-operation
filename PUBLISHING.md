@@ -1,72 +1,76 @@
-# WZ操作 0.2.0 — Marketplace公開手順
+# WZ操作 — リリース手順
 
-このソースは Visual Studio Code Marketplace 公開用に `publisher: kiyoc` で準備済みです。
-
-GitHubアカウントは `kiyo-c` を使用します。
+この拡張は GitHub Actions の `.github/workflows/release.yml` からリリースします。
 
 - Marketplace Publisher ID: `kiyoc`
 - GitHub repository: `https://github.com/kiyo-c/wz-operation`
+- Extension ID: `kiyoc.wz-operation`
 
-## 1. Publisher ID `kiyoc` を作成
+## 通常のリリース
 
-Visual Studio Marketplace の publisher management で Publisher を作成します。
+1. `package.json` の `version` を更新する。
+2. `CHANGELOG.md` を更新する。
+3. READMEその他の公開内容を確認する。
+4. ローカルで `vsce package` し、生成したVSIXを実機テストする。
+5. 変更を `main` へ commit / push する。
+6. `package.json` と一致するタグを作成してpushする。
 
-- Publisher ID: `kiyoc`
-- Publisher Name: 任意（例: `kiyoc`）
-
-**Publisher ID は作成後に変更できません。** また、Marketplace上で既に使用されているIDは取得できません。
-
-## 2. GitHubリポジトリを用意
-
-GitHubアカウント `kiyo-c` 側に `wz-operation` リポジトリを作成します。
-
-```text
-https://github.com/kiyo-c/wz-operation
-```
-
-`package.json` の repository / homepage / bugs はこのURLに設定済みです。
-
-## 3. vsce を用意
+例: `package.json` が `0.2.2` の場合
 
 ```bash
-npm install -g @vscode/vsce
+git tag v0.2.2
+git push origin v0.2.2
 ```
 
-## 4. パッケージ確認
+タグpushを契機にGitHub Actionsが次を自動実行します。
 
-リポジトリ直下で実行します。
+- `vX.Y.Z` 形式のタグか検証
+- タグのバージョンと `package.json` のバージョンが一致するか検証
+- VSIXを1回だけ生成
+- Visual Studio Marketplaceへ同じVSIXを公開
+- Open VSXへ同じVSIXを公開
+- GitHub Releaseを作成
+- 同じVSIXをGitHub Release assetへ添付
 
-```bash
-vsce package
-```
+途中で失敗した場合にworkflowを再実行できるよう、Marketplace / Open VSXのpublishは重複バージョンを許容する設定にしています。
 
-`wz-operation-0.2.0.vsix` が生成されます。
+## GitHub Actions Secrets
 
-## 5. 公開
+### `OVSX_PAT`
 
-方法A: MarketplaceのPublisher管理画面からVSIXをアップロード。
+Open VSXのpublish用トークンです。既存のSecretを使用します。
 
-方法B: `vsce login kiyoc` 後にCLIから公開。
+### `VSCE_PAT`
 
-```bash
-vsce login kiyoc
-vsce publish
-```
+Visual Studio Marketplaceへのpublish用PATです。
+
+Azure DevOpsで作成し、GitHub repositoryの
+`Settings` → `Secrets and variables` → `Actions` → `New repository secret`
+から、Secret名 `VSCE_PAT` として登録します。
+
+PATは以下を満たすものを使用します。
+
+- Organization: `All accessible organizations`
+- Scope: `Marketplace` → `Manage`
+
+> Note: Azure DevOpsのglobal PATは2026-12-01に廃止予定です。MicrosoftはMicrosoft Entra ID / workload identityによる公開へ移行中です。`@vscode/vsce` のGitHub Actions Trusted Publishing (OIDC) が安定版で利用可能になった時点で、`VSCE_PAT` をOIDCへ置き換える方針とします。
+
+## 手動Dry Run
+
+GitHubの `Actions` → `Release extension` → `Run workflow` を実行すると、公開せずにVSIXの生成と内容確認まで実行します。
+
+手動Dry Runでは以下は実行しません。
+
+- Visual Studio Marketplace publish
+- Open VSX publish
+- GitHub Release作成
 
 ## 公開前チェック
 
-- MarketplaceでPublisher ID `kiyoc` を取得済みか
-- GitHub `kiyo-c/wz-operation` を作成済みか
-- `F5` / `Shift+F5` が実機で正常動作するか
-- `F8` / `Shift+F8` / `F9` / `Shift+F9` が実機で正常動作するか
-- F5バッファとF8/F9コピースタックが互いに干渉しないか
-- READMEの「非公式拡張」表記を維持しているか
-- バージョンが `0.2.0` であるか
-
-## 拡張ID
-
-公開後の拡張IDは次になります。
-
-```text
-kiyoc.wz-operation
-```
+- `F5` / `Shift+F5` が実機で正常動作する
+- `F8` / `Shift+F8` / `F9` / `Shift+F9` が実機で正常動作する
+- F5バッファとF8/F9コピースタックが互いに干渉しない
+- READMEの「非公式拡張」表記を維持している
+- アイコンが正常に表示される
+- `package.json` のversionとリリースタグが一致する
+- Git working treeに意図しない変更がない

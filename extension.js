@@ -146,17 +146,16 @@ async function pickKeywordAndAddSelection() {
   // 既存のVS Code機能を直接呼ぶため、キーバインド再帰は起こらない。
   await vscode.commands.executeCommand('editor.action.addSelectionToNextFindMatch');
 
-  const editor = vscode.window.activeTextEditor;
-  if (!editor) {
+  if (vscode.window.activeTextEditor !== editorBefore) {
     return;
   }
 
-  const selection = editor.selections.find((s) => !s.isEmpty);
+  const selection = editorBefore.selections.find((s) => !s.isEmpty);
   if (!selection) {
     return;
   }
 
-  const text = editor.document.getText(selection);
+  const text = editorBefore.document.getText(selection);
   if (text.length > 0) {
     pickedKeyword = text;
   }

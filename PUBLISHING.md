@@ -1,6 +1,6 @@
 # WZ操作 — リリース手順
 
-この拡張は GitHub Actions の `.github/workflows/release.yml` からリリースします。
+この拡張は、Visual Studio Marketplace と GitHub Release は手動、Open VSX は GitHub Actions の手動実行で公開します。
 
 - Marketplace Publisher ID: `kiyoc`
 - GitHub repository: `https://github.com/kiyo-c/wz-operation`
@@ -11,59 +11,33 @@
 1. `package.json` の `version` を更新する。
 2. `CHANGELOG.md` を更新する。
 3. READMEその他の公開内容を確認する。
-4. ローカルで `vsce package` し、生成したVSIXを実機テストする。
-5. 変更を `main` へ commit / push する。
-6. `package.json` と一致するタグを作成してpushする。
+4. リポジトリ直下で `vsce package` を実行する。
+5. 生成された `wz-operation-X.Y.Z.vsix` を VS Code に「VSIXからインストール」して実機テストする。
+6. Visual Studio Marketplace の Publisher 管理画面で既存拡張の `Update` から同じVSIXをアップロードする。
+7. GitHub の `Actions` → `Publish to Open VSX` → `Run workflow` を実行する。
+8. GitHub Releases で `vX.Y.Z` を作成し、同じVSIXをRelease assetとして添付する。
 
-例: `package.json` が `0.2.2` の場合
+## Open VSX
 
-```bash
-git tag v0.2.2
-git push origin v0.2.2
-```
+`.github/workflows/publish-open-vsx.yml` は `workflow_dispatch` のみで起動します。
 
-タグpushを契機にGitHub Actionsが次を自動実行します。
+GitHub Secret `OVSX_PAT` を使用して、現在の `main` の `package.json` に記載されたバージョンを Open VSX へ公開します。
 
-- `vX.Y.Z` 形式のタグか検証
-- タグのバージョンと `package.json` のバージョンが一致するか検証
-- VSIXを1回だけ生成
-- Visual Studio Marketplaceへ同じVSIXを公開
-- Open VSXへ同じVSIXを公開
-- GitHub Releaseを作成
-- 同じVSIXをGitHub Release assetへ添付
+## Visual Studio Marketplace
 
-途中で失敗した場合にworkflowを再実行できるよう、Marketplace / Open VSXのpublishは重複バージョンを許容する設定にしています。
+Visual Studio Marketplace は Publisher 管理画面からVSIXを手動アップロードします。
 
-## GitHub Actions Secrets
+Marketplace公開用のPAT、Azure DevOps、OIDC認証は現在使用しません。
 
-### `OVSX_PAT`
+## GitHub Release
 
-Open VSXのpublish用トークンです。既存のSecretを使用します。
+GitHub Release は手動で作成します。
 
-### `VSCE_PAT`
+- Tag: `vX.Y.Z`
+- Release title: `vX.Y.Z`
+- Asset: `wz-operation-X.Y.Z.vsix`
 
-Visual Studio Marketplaceへのpublish用PATです。
-
-Azure DevOpsで作成し、GitHub repositoryの
-`Settings` → `Secrets and variables` → `Actions` → `New repository secret`
-から、Secret名 `VSCE_PAT` として登録します。
-
-PATは以下を満たすものを使用します。
-
-- Organization: `All accessible organizations`
-- Scope: `Marketplace` → `Manage`
-
-> Note: Azure DevOpsのglobal PATは2026-12-01に廃止予定です。MicrosoftはMicrosoft Entra ID / workload identityによる公開へ移行中です。`@vscode/vsce` のGitHub Actions Trusted Publishing (OIDC) が安定版で利用可能になった時点で、`VSCE_PAT` をOIDCへ置き換える方針とします。
-
-## 手動Dry Run
-
-GitHubの `Actions` → `Release extension` → `Run workflow` を実行すると、公開せずにVSIXの生成と内容確認まで実行します。
-
-手動Dry Runでは以下は実行しません。
-
-- Visual Studio Marketplace publish
-- Open VSX publish
-- GitHub Release作成
+VSIXはGit管理対象にしません。`.gitignore` の `*.vsix` で除外します。
 
 ## 公開前チェック
 
@@ -72,5 +46,5 @@ GitHubの `Actions` → `Release extension` → `Run workflow` を実行する�
 - F5バッファとF8/F9コピースタックが互いに干渉しない
 - READMEの「非公式拡張」表記を維持している
 - アイコンが正常に表示される
-- `package.json` のversionとリリースタグが一致する
+- `package.json` のversionが公開予定バージョンと一致する
 - Git working treeに意図しない変更がない

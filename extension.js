@@ -267,48 +267,23 @@ async function cutToStack() {
     return;
   }
 
-  const selectedRanges = editor.selections.filter((selection) => !selection.isEmpty);
-  const lineNumbers = new Set();
+  let selections = editor.selections.filter((selection) => !selection.isEmpty);
+  const cutsWholeLines = selections.length === 0;
 
-  if (selectedRanges.length === 0) {
+  if (cutsWholeLines) {
+    const lineNumbers = new Set();
     for (const selection of editor.selections) {
       lineNumbers.add(selection.active.line);
     }
-  } else {
-    for (const selection of selectedRanges) {
-      let lastLine = selection.end.line;
-      if (selection.end.character === 0 && lastLine > selection.start.line) {
-        lastLine--;
-      }
 
-      for (let line = selection.start.line; line <= lastLine; line++) {
-        lineNumbers.add(line);
-      }
-    }
+    selections = [...lineNumbers]
+      .sort((a, b) => a - b)
+      .map((lineNumber) => editor.document.lineAt(lineNumber).rangeIncludingLineBreak);
   }
 
-  const sortedLineNumbers = [...lineNumbers].sort((a, b) => a - b);
-  const selections = [];
-
-  for (const lineNumber of sortedLineNumbers) {
-    const previous = selections[selections.length - 1];
-    if (previous && previous.lastLine + 1 === lineNumber) {
-      previous.lastLine = lineNumber;
-      continue;
-    }
-
-    selections.push({ firstLine: lineNumber, lastLine: lineNumber });
-  }
-
-  for (let index = 0; index < selections.length; index++) {
-    const { firstLine, lastLine } = selections[index];
-    selections[index] = new vscode.Range(
-      editor.document.lineAt(firstLine).range.start,
-      editor.document.lineAt(lastLine).rangeIncludingLineBreak.end
-    );
-  }
-
-  const text = selections.map((selection) => editor.document.getText(selection)).join('');
+  const text = cutsWholeLines
+    ? selections.map((selection) => editor.document.getText(selection)).join('')
+    : getSelectedText(editor, selections);
 
   if (textBytes(text) > MAX_CLIP_ITEM_BYTES) {
     showClipItemTooLargeMessage();

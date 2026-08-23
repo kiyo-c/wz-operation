@@ -2,7 +2,7 @@
   "name": "wz-operation",
   "displayName": "WZ操作",
   "description": "WZ Editorの操作感に着想を得たキーボード操作を実現する拡張機能です。",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "publisher": "kiyoc",
   "author": {
     "name": "kiyoc"

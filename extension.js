@@ -15,6 +15,7 @@ let pickedKeyword = '';
 // WZ本体の永続TEMPスタックとは異なり、VS Code再起動時に破棄される。
 const MAX_CLIP_STACK_BYTES = 256 * 1024 * 1024; // 256 MiB
 let clipStack = [];
+let clipStackHead = 0;
 let clipStackBytes = 0;
 
 function textBytes(text) {
@@ -41,16 +42,59 @@ function prepareClipItem(text) {
 }
 
 function pushPreparedClipItem(item) {
-  clipStack.unshift(item);
+  clipStack.push(item);
   clipStackBytes += item.bytes;
 
   // 容量上限を超えたら最古の項目から捨てる。
-  while (clipStackBytes > MAX_CLIP_STACK_BYTES && clipStack.length > 0) {
-    const oldest = clipStack.pop();
+  while (
+    clipStackBytes > MAX_CLIP_STACK_BYTES &&
+    clipStackHead < clipStack.length
+  ) {
+    const oldest = clipStack[clipStackHead];
     clipStackBytes -= oldest.bytes;
+    clipStack[clipStackHead] = undefined;
+    clipStackHead++;
   }
 
+  compactClipStackIfNeeded();
+
   return true;
+}
+
+function compactClipStackIfNeeded() {
+  if (clipStackHead >= 1024 && clipStackHead * 2 >= clipStack.length) {
+    clipStack = clipStack.slice(clipStackHead);
+    clipStackHead = 0;
+  }
+}
+
+function isClipStackEmpty() {
+  return clipStackHead >= clipStack.length;
+}
+
+function getLatestClipItem() {
+  if (isClipStackEmpty()) {
+    return undefined;
+  }
+
+  return clipStack[clipStack.length - 1];
+}
+
+function popLatestClipItem() {
+  const item = getLatestClipItem();
+  if (!item) {
+    return undefined;
+  }
+
+  clipStack.pop();
+  clipStackBytes -= item.bytes;
+
+  if (isClipStackEmpty()) {
+    clipStack = [];
+    clipStackHead = 0;
+  }
+
+  return item;
 }
 
 function pushClipStack(text) {
@@ -208,12 +252,12 @@ async function pasteFromStack(popAfterPaste) {
     return;
   }
 
-  if (clipStack.length === 0) {
+  if (isClipStackEmpty()) {
     vscode.window.setStatusBarMessage('WZ操作: コピースタックが空です', 2000);
     return;
   }
 
-  const item = clipStack[0];
+  const item = getLatestClipItem();
 
   const edited = await editor.edit(
     (editBuilder) => {
@@ -228,8 +272,7 @@ async function pasteFromStack(popAfterPaste) {
   );
 
   if (edited && popAfterPaste) {
-    const removed = clipStack.shift();
-    clipStackBytes -= removed.bytes;
+    popLatestClipItem();
   }
 }
 

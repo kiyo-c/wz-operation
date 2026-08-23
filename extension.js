@@ -173,7 +173,7 @@ async function cutToStack() {
     return;
   }
 
-  // Validate before deleting so an oversized selection is never lost.
+  // 削除前に保存可能か検証し、容量超過時のデータ消失を防ぐ。
   const item = prepareClipItem(text);
   if (!item) {
     return;

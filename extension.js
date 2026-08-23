@@ -13,7 +13,9 @@ let pickedKeyword = '';
 // -----------------------------------------------------------------------------
 // Extension Hostのメモリ上だけに保持するテキスト専用LIFOスタック。
 // WZ本体の永続TEMPスタックとは異なり、VS Code再起動時に破棄される。
-const MAX_CLIP_STACK_BYTES = 256 * 1024 * 1024; // 256 MiB
+const MAX_CLIP_STACK_BYTES = 64 * 1024 * 1024;
+const MAX_CLIP_ITEM_BYTES = 16 * 1024 * 1024;
+const MAX_EDIT_PAYLOAD_BYTES = 64 * 1024 * 1024;
 let clipStack = [];
 let clipStackHead = 0;
 let clipStackBytes = 0;
@@ -21,7 +23,14 @@ let clipStackBytes = 0;
 function textBytes(text) {
   // JavaScript文字列の実メモリ量と完全一致はしないが、
   // UTF-16LE換算で安全側の容量管理を行う。
-  return Buffer.byteLength(text, 'utf16le');
+  return text.length * 2;
+}
+
+function showClipItemTooLargeMessage() {
+  vscode.window.setStatusBarMessage(
+    'WZ操作: 選択内容が16 MiBを超えるためコピースタックへ保存できません',
+    3000
+  );
 }
 
 function prepareClipItem(text) {
@@ -30,11 +39,8 @@ function prepareClipItem(text) {
   }
 
   const bytes = textBytes(text);
-  if (bytes > MAX_CLIP_STACK_BYTES) {
-    vscode.window.setStatusBarMessage(
-      'WZ操作: 選択内容が256 MiBを超えるためコピースタックへ保存できません',
-      3000
-    );
+  if (bytes > MAX_CLIP_ITEM_BYTES) {
+    showClipItemTooLargeMessage();
     return null;
   }
 
@@ -106,14 +112,22 @@ function pushClipStack(text) {
   return pushPreparedClipItem(item);
 }
 
-function getSelectedText(editor) {
-  const nonEmptySelections = editor.selections.filter((selection) => !selection.isEmpty);
-  if (nonEmptySelections.length === 0) {
-    return '';
+function selectedTextBytes(editor, selections) {
+  let codeUnits = 0;
+  for (const selection of selections) {
+    const start = editor.document.offsetAt(selection.start);
+    const end = editor.document.offsetAt(selection.end);
+    codeUnits += end - start;
   }
 
   const eol = editor.document.eol === vscode.EndOfLine.CRLF ? '\r\n' : '\n';
-  return nonEmptySelections
+  codeUnits += eol.length * Math.max(0, selections.length - 1);
+  return codeUnits * 2;
+}
+
+function getSelectedText(editor, selections) {
+  const eol = editor.document.eol === vscode.EndOfLine.CRLF ? '\r\n' : '\n';
+  return selections
     .map((selection) => editor.document.getText(selection))
     .join(eol);
 }
@@ -187,12 +201,18 @@ async function copyToStack() {
     return;
   }
 
-  const text = getSelectedText(editor);
-  if (!text) {
+  const selections = editor.selections.filter((selection) => !selection.isEmpty);
+  if (selections.length === 0) {
     vscode.window.setStatusBarMessage('WZ操作: コピーする範囲を選択してください', 2000);
     return;
   }
 
+  if (selectedTextBytes(editor, selections) > MAX_CLIP_ITEM_BYTES) {
+    showClipItemTooLargeMessage();
+    return;
+  }
+
+  const text = getSelectedText(editor, selections);
   pushClipStack(text);
 }
 
@@ -212,10 +232,12 @@ async function cutToStack() {
     return;
   }
 
-  const text = getSelectedText(editor);
-  if (!text) {
+  if (selectedTextBytes(editor, selections) > MAX_CLIP_ITEM_BYTES) {
+    showClipItemTooLargeMessage();
     return;
   }
+
+  const text = getSelectedText(editor, selections);
 
   // 削除前に保存可能か検証し、容量超過時のデータ消失を防ぐ。
   const item = prepareClipItem(text);
@@ -258,6 +280,14 @@ async function pasteFromStack(popAfterPaste) {
   }
 
   const item = getLatestClipItem();
+
+  if (item.bytes > Math.floor(MAX_EDIT_PAYLOAD_BYTES / editor.selections.length)) {
+    vscode.window.setStatusBarMessage(
+      'WZ操作: 貼り付けるデータ量が64 MiBを超えるため実行できません',
+      3000
+    );
+    return;
+  }
 
   const edited = await editor.edit(
     (editBuilder) => {

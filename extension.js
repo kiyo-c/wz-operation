@@ -225,18 +225,25 @@ async function cutToStack() {
     return;
   }
 
-  const selections = editor.selections.filter((selection) => !selection.isEmpty);
-  if (selections.length === 0) {
-    vscode.window.setStatusBarMessage('WZ操作: 切り取る範囲を選択してください', 2000);
-    return;
+  let selections = editor.selections.filter((selection) => !selection.isEmpty);
+  const cutsWholeLines = selections.length === 0;
+
+  if (cutsWholeLines) {
+    const lineNumbers = [...new Set(editor.selections.map((selection) => selection.active.line))];
+    lineNumbers.sort((a, b) => a - b);
+    selections = lineNumbers.map(
+      (lineNumber) => editor.document.lineAt(lineNumber).rangeIncludingLineBreak
+    );
   }
 
-  if (selectedTextBytes(editor, selections) > MAX_CLIP_ITEM_BYTES) {
+  const text = cutsWholeLines
+    ? selections.map((selection) => editor.document.getText(selection)).join('')
+    : getSelectedText(editor, selections);
+
+  if (textBytes(text) > MAX_CLIP_ITEM_BYTES) {
     showClipItemTooLargeMessage();
     return;
   }
-
-  const text = getSelectedText(editor, selections);
 
   // 削除前に保存可能か検証し、容量超過時のデータ消失を防ぐ。
   const item = prepareClipItem(text);

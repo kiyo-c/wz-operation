@@ -143,17 +143,6 @@ To change the keybindings, assign any keys to the following commands:
 - `WZ Operation: Paste and Consume from Copy Stack`
 - `WZ Operation: Paste from Copy Stack`
 
-### Source code and issues
-
-- GitHub: https://github.com/kiyo-c/wz-operation
-- Issues: https://github.com/kiyo-c/wz-operation/issues
-
-The Marketplace Publisher ID is `kiyoc`, and the GitHub account is `kiyo-c`.
-
-### License
-
-MIT License
-
 ---
 
 <a id="日本語"></a>
@@ -315,13 +304,3 @@ F5で取得したキーワードがF8/F9の履歴へ混ざることはなく、F
 - `WZ操作: コピースタックから貼り付けて消費`
 - `WZ操作: コピースタックから貼り付け`
 
-### ソースコード・問題
-
-- GitHub: https://github.com/kiyo-c/wz-operation
-- Issues: https://github.com/kiyo-c/wz-operation/issues
-
-Marketplace Publisher IDは `kiyoc`、GitHubアカウントは `kiyo-c` です。
-
-### ライセンス
-
-MIT License

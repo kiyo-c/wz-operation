@@ -11,7 +11,7 @@
 1. `package.json` の `version` を更新する。
 2. `CHANGELOG.md` を更新する。
 3. READMEその他の公開内容を確認する。
-4. リポジトリ直下で `vsce package` を実行する。
+4. リポジトリ直下で `npx --yes @vscode/vsce package` を実行する。
 5. 生成された `wz-operation-X.Y.Z.vsix` を VS Code に「VSIXからインストール」して実機テストする。
 6. Visual Studio Marketplace の Publisher 管理画面で既存拡張の `Update` から同じVSIXをアップロードする。
 7. GitHub の `Actions` → `Publish to Open VSX` → `Run workflow` を実行する。

@@ -3,6 +3,74 @@
 const vscode = require('vscode');
 
 // -----------------------------------------------------------------------------
+// editor.editContext警告
+// -----------------------------------------------------------------------------
+const EDIT_CONTEXT_WARNING_STATE_KEY = 'editContextWarningState';
+const EDIT_CONTEXT_WARNING_LIMIT = 2;
+const EDIT_CONTEXT_WARNING_MESSAGE = '設定(setting.json)で "editor.editContext": true が指定されているため、IME使用中はF8の切り取りを利用できません。';
+const OPEN_SETTINGS_ACTION = '設定を開く';
+
+/**
+ * editor.editContextがtrueの場合、現在のバージョンで最大2回まで通知する。
+ * バージョンが変わった場合は通知回数をリセットする。
+ *
+ * @param {vscode.ExtensionContext} context 拡張機能の実行コンテキスト。
+ * @returns {Promise<void>} 通知状態の保存と通知処理の完了を表すPromise。
+ */
+async function warnIfEditContextEnabled(context) {
+  const currentVersion = context.extension.packageJSON.version;
+  const savedState = context.globalState.get(EDIT_CONTEXT_WARNING_STATE_KEY);
+
+  // 更新またはダウングレードでバージョンが変わった場合は回数を引き継がない。
+  const state =
+    savedState && savedState.version === currentVersion
+      ? savedState
+      : { version: currentVersion, notificationCount: 0 };
+
+  // 推奨デフォルトのfalseが有効な場合や、通知上限へ達した場合は何もしない。
+  const editContextEnabled = vscode.workspace
+    .getConfiguration('editor')
+    .get('editContext', false);
+  if (!editContextEnabled || state.notificationCount >= EDIT_CONTEXT_WARNING_LIMIT) {
+    return;
+  }
+
+  // 通知を閉じる前に終了しても再表示されないよう、表示前に回数を保存する。
+  await context.globalState.update(EDIT_CONTEXT_WARNING_STATE_KEY, {
+    version: currentVersion,
+    notificationCount: state.notificationCount + 1
+  });
+
+  // 設定画面を直接開けるアクション付きで警告する。
+  const selectedAction = await vscode.window.showWarningMessage(
+    EDIT_CONTEXT_WARNING_MESSAGE,
+    OPEN_SETTINGS_ACTION
+  );
+  if (selectedAction === OPEN_SETTINGS_ACTION) {
+    await vscode.commands.executeCommand(
+      'workbench.action.openSettings',
+      { query: '@id:editor.editContext' }
+    );
+  }
+}
+
+/**
+ * editor.editContext警告の通知済み状態だけを削除する。
+ *
+ * @param {vscode.ExtensionContext} context 拡張機能の実行コンテキスト。
+ * @returns {Promise<void>} 通知状態の削除と完了通知を表すPromise。
+ */
+async function resetEditContextWarningState(context) {
+  // globalState内の本機能専用キーだけを削除する。
+  await context.globalState.update(EDIT_CONTEXT_WARNING_STATE_KEY, undefined);
+
+  // 次回起動時に通知判定が再実行されることを利用者へ伝える。
+  await vscode.window.showInformationMessage(
+    'EditContextの通知状態をリセットしました。次回のVS Code起動時に通知を再判定します。'
+  );
+}
+
+// -----------------------------------------------------------------------------
 // F5系: キーワード専用バッファ
 // -----------------------------------------------------------------------------
 // OSクリップボード、F8/F9コピースタックとは完全に独立。
@@ -29,6 +97,16 @@ function hasPickedKeywordSelection(editor) {
   return pickedKeywordSelection.selections.every(
     (selection, index) => selection.isEqual(currentSelections[index])
   );
+}
+
+function clearPickedKeywordSelectionForDocument(document) {
+  if (
+    document.isClosed &&
+    pickedKeywordSelection &&
+    pickedKeywordSelection.document === document
+  ) {
+    pickedKeywordSelection = undefined;
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -135,7 +213,7 @@ function pushClipStack(text) {
   return pushPreparedClipItem(item);
 }
 
-function selectedTextBytes(editor, selections) {
+function selectionRangesBytes(editor, selections) {
   let codeUnits = 0;
   for (const selection of selections) {
     const start = editor.document.offsetAt(selection.start);
@@ -143,12 +221,22 @@ function selectedTextBytes(editor, selections) {
     codeUnits += end - start;
   }
 
-  const eol = editor.document.eol === vscode.EndOfLine.CRLF ? '\r\n' : '\n';
-  codeUnits += eol.length * Math.max(0, selections.length - 1);
   return codeUnits * 2;
 }
 
+function selectedTextBytes(editor, selections) {
+  const eolCodeUnits = editor.document.eol === vscode.EndOfLine.CRLF ? 2 : 1;
+  return (
+    selectionRangesBytes(editor, selections) +
+    eolCodeUnits * Math.max(0, selections.length - 1) * 2
+  );
+}
+
 function getSelectedText(editor, selections) {
+  if (selections.length === 1) {
+    return editor.document.getText(selections[0]);
+  }
+
   const eol = editor.document.eol === vscode.EndOfLine.CRLF ? '\r\n' : '\n';
   return selections
     .map((selection) => editor.document.getText(selection))
@@ -259,18 +347,38 @@ async function cutToStack() {
     return;
   }
 
-  let selections = editor.selections.filter((selection) => !selection.isEmpty);
-  const cutsWholeLines = selections.length === 0;
+  const editorSelections = editor.selections;
+  let selections;
+  let cutsWholeLines;
 
-  if (cutsWholeLines) {
-    const lineNumbers = new Set();
-    for (const selection of editor.selections) {
-      lineNumbers.add(selection.active.line);
+  if (editorSelections.length === 1) {
+    const selection = editorSelections[0];
+    cutsWholeLines = selection.isEmpty;
+    selections = cutsWholeLines
+      ? [editor.document.lineAt(selection.active.line).rangeIncludingLineBreak]
+      : editorSelections;
+  } else {
+    selections = editorSelections.filter((selection) => !selection.isEmpty);
+    cutsWholeLines = selections.length === 0;
+
+    if (cutsWholeLines) {
+      const lineNumbers = new Set();
+      for (const selection of editorSelections) {
+        lineNumbers.add(selection.active.line);
+      }
+
+      selections = [...lineNumbers]
+        .sort((a, b) => a - b)
+        .map((lineNumber) => editor.document.lineAt(lineNumber).rangeIncludingLineBreak);
     }
+  }
 
-    selections = [...lineNumbers]
-      .sort((a, b) => a - b)
-      .map((lineNumber) => editor.document.lineAt(lineNumber).rangeIncludingLineBreak);
+  const bytes = cutsWholeLines
+    ? selectionRangesBytes(editor, selections)
+    : selectedTextBytes(editor, selections);
+  if (bytes > MAX_CLIP_ITEM_BYTES) {
+    showClipItemTooLargeMessage();
+    return;
   }
 
   const text = cutsWholeLines
@@ -352,8 +460,9 @@ function pasteStack() {
   return pasteFromStack(false);
 }
 
-function activate(context) {
+async function activate(context) {
   context.subscriptions.push(
+    vscode.workspace.onDidCloseTextDocument(clearPickedKeywordSelectionForDocument),
     vscode.commands.registerCommand(
       'wzOperation.pickKeywordAndAddSelection',
       pickKeywordAndAddSelection
@@ -365,8 +474,15 @@ function activate(context) {
     vscode.commands.registerCommand('wzOperation.cutToStack', cutToStack),
     vscode.commands.registerCommand('wzOperation.copyToStack', copyToStack),
     vscode.commands.registerCommand('wzOperation.pasteAndPopStack', pasteAndPopStack),
-    vscode.commands.registerCommand('wzOperation.pasteStack', pasteStack)
+    vscode.commands.registerCommand('wzOperation.pasteStack', pasteStack),
+    vscode.commands.registerCommand(
+      'wzOperation.resetEditContextWarningState',
+      () => resetEditContextWarningState(context)
+    )
   );
+
+  // コマンド登録後、現在の設定に応じてバージョン単位の警告を行う。
+  await warnIfEditContextEnabled(context);
 }
 
 function deactivate() {

@@ -2,7 +2,7 @@
   "name": "wz-operation",
   "displayName": "WZ操作",
   "description": "WZ Editorの操作感に着想を得たキーボード操作を実現する拡張機能です。",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "publisher": "kiyoc",
   "author": {
     "name": "kiyoc"
@@ -36,8 +36,14 @@
     "color": "#1f2430",
     "theme": "dark"
   },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./extension.js",
   "contributes": {
+    "configurationDefaults": {
+      "editor.editContext": false
+    },
     "commands": [
       {
         "command": "wzOperation.pickKeywordAndAddSelection",
@@ -62,6 +68,10 @@
       {
         "command": "wzOperation.pasteStack",
         "title": "WZ操作: コピースタックから貼り付け"
+      },
+      {
+        "command": "wzOperation.resetEditContextWarningState",
+        "title": "WZ操作: EditContext通知状態をリセット"
       }
     ],
     "keybindings": [

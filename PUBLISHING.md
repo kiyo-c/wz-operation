@@ -11,11 +11,12 @@
 1. `package.json` の `version` を更新する。
 2. `CHANGELOG.md` を更新する。
 3. READMEその他の公開内容を確認する。
-4. リポジトリ直下で `vsce package` を実行する。
-5. 生成された `wz-operation-X.Y.Z.vsix` を VS Code に「VSIXからインストール」して実機テストする。
-6. Visual Studio Marketplace の Publisher 管理画面で既存拡張の `Update` から同じVSIXをアップロードする。
-7. GitHub の `Actions` → `Publish to Open VSX` → `Run workflow` を実行する。
-8. GitHub Releases で `vX.Y.Z` を作成し、同じVSIXをRelease assetとして添付する。
+4. `native/README.md` の手順でWindows用IME OFFヘルパーを再ビルドし、ソースと実行ファイルが対応していることを確認する。
+5. リポジトリ直下で `vsce package` を実行する。
+6. 生成された `wz-operation-X.Y.Z.vsix` を VS Code に「VSIXからインストール」して実機テストする。
+7. Visual Studio Marketplace の Publisher 管理画面で既存拡張の `Update` から同じVSIXをアップロードする。
+8. GitHub の `Actions` → `Publish to Open VSX` → `Run workflow` を実行する。
+9. GitHub Releases で `vX.Y.Z` を作成し、同じVSIXをRelease assetとして添付する。
 
 ## Open VSX
 
@@ -43,6 +44,9 @@ VSIXはGit管理対象にしません。`.gitignore` の `*.vsix` で除外し�
 
 - `F5` / `Shift+F5` が実機で正常動作する
 - `F8` / `Shift+F8` / `F9` / `Shift+F9` が実機で正常動作する
+- WindowsでIMEをONにしてShift+カーソルで複数行を選択したあと、`F8` が選択範囲全体を切り取る
+- `wzOperation.keyboard.turnImeOffWhenSelectionStarts` の有効・無効が即時反映される
+- VSIXに `native/ime-off-helper.c`、`native/ime-off-helper-x64.exe`、`native/ime-off-helper-x86.exe`、`native/ime-off-helper-arm64.exe`、`native/README.md` が収録されている
 - F5バッファとF8/F9コピースタックが互いに干渉しない
 - READMEの「非公式拡張」表記を維持している
 - アイコンが正常に表示される

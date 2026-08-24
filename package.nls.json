@@ -1,0 +1,17 @@
+{
+  "extension.displayName": "WZ Operation",
+  "extension.description": "WZ Editor-inspired keyboard operations for Visual Studio Code.",
+  "command.pickKeywordAndAddSelection.title": "WZ Operation: Capture Keyword and Select Next Match",
+  "command.pastePickedKeyword.title": "WZ Operation: Paste Captured Keyword",
+  "command.cutToStack.title": "WZ Operation: Cut Selection to Copy Stack",
+  "command.copyToStack.title": "WZ Operation: Copy Selection to Copy Stack",
+  "command.pasteAndPopStack.title": "WZ Operation: Paste and Consume from Copy Stack",
+  "command.pasteStack.title": "WZ Operation: Paste from Copy Stack",
+  "configuration.title": "WZ Operation",
+  "configuration.maxTotalSizeMiB.title": "Maximum Total Copy-Stack Size",
+  "configuration.maxTotalSizeMiB.description": "Maximum total copy-stack size in MiB, calculated as UTF-16.",
+  "configuration.maxItemSizeMiB.title": "Maximum Copy-Stack Item Size",
+  "configuration.maxItemSizeMiB.description": "Maximum size of one copy-stack item in MiB, calculated as UTF-16. If this is greater than the total limit, the total limit is used.",
+  "configuration.turnImeOffWhenSelectionStarts.title": "Turn IME Off When a Selection Starts",
+  "configuration.turnImeOffWhenSelectionStarts.description": "On Windows, turns the IME off when a keyboard or mouse selection starts, so function-key commands such as F8 reach VS Code. Disable this if you want to keep the IME on while selecting text."
+}

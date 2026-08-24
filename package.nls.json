@@ -7,6 +7,7 @@
   "command.copyToStack.title": "WZ Operation: Copy Selection to Copy Stack",
   "command.pasteAndPopStack.title": "WZ Operation: Paste and Consume from Copy Stack",
   "command.pasteStack.title": "WZ Operation: Paste from Copy Stack",
+  "command.resetEditContextWarningState.title": "WZ Operation: Reset EditContext Notification State",
   "configuration.title": "WZ Operation",
   "configuration.maxTotalSizeMiB.title": "Maximum Total Copy-Stack Size",
   "configuration.maxTotalSizeMiB.description": "Maximum total copy-stack size in MiB, calculated as UTF-16.",

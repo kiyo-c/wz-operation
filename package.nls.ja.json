@@ -7,6 +7,7 @@
   "command.copyToStack.title": "WZ操作: 選択範囲をコピースタックへ追加",
   "command.pasteAndPopStack.title": "WZ操作: コピースタックから貼り付けて消費",
   "command.pasteStack.title": "WZ操作: コピースタックから貼り付け",
+  "command.resetEditContextWarningState.title": "WZ操作: EditContext通知状態をリセット",
   "configuration.title": "WZ操作",
   "configuration.maxTotalSizeMiB.title": "コピースタック全体の最大サイズ",
   "configuration.maxTotalSizeMiB.description": "コピースタック全体の最大サイズ（MiB）。UTF-16換算で計算します。",

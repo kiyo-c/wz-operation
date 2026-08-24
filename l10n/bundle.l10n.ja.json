@@ -4,5 +4,8 @@
   "WZ Operation: Select a range to copy.": "WZ操作: コピーする範囲を選択してください",
   "WZ Operation: The copy stack is empty.": "WZ操作: コピースタックが空です",
   "WZ Operation: The paste exceeds the total copy-stack capacity ({0} MiB) and cannot be performed.": "WZ操作: 貼り付けるデータ量がコピースタックの合計容量上限（{0} MiB）を超えるため実行できません",
-  "WZ Operation: Automatic IME-off is unavailable. Turn the setting off and on to retry.": "WZ操作: IMEの自動OFFを利用できません。設定を一度OFFにしてからONにすると再試行できます"
+  "WZ Operation: Automatic IME-off is unavailable. Turn the setting off and on to retry.": "WZ操作: IMEの自動OFFを利用できません。設定を一度OFFにしてからONにすると再試行できます",
+  "The setting \"editor.editContext\": true is specified in settings.json, so F8 cut cannot be used while the IME is active.": "設定(setting.json)で \"editor.editContext\": true が指定されているため、IME使用中はF8の切り取りを利用できません。",
+  "Open Settings": "設定を開く",
+  "The EditContext notification state was reset. It will be checked again the next time VS Code starts.": "EditContextの通知状態をリセットしました。次回のVS Code起動時に通知を再判定します。"
 }

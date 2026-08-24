@@ -13,6 +13,13 @@
 - Added English and Japanese localization for command names, setting names and descriptions, and status-bar messages.
 - On Windows, added an enabled-by-default option that turns the IME off when a keyboard or mouse selection starts, preventing the IME from consuming function-key commands such as `F8`.
 
+### 0.2.5
+
+- Changed the recommended default of `editor.editContext` to `false` through `configurationDefaults`, without modifying user settings.
+- Documented that an explicit `editor.editContext: true` setting takes precedence and can prevent the extension's `F8` cut command from running while the IME is active.
+- Added an EditContext notification with an “Open Settings” action when the effective setting is `true`.
+- Added a maintenance command that safely resets only the EditContext notification state.
+
 ### 0.2.4
 
 - `Shift+F5`: Changed comparison of F5-recorded selections to direct comparison, reducing temporary array and string allocations.
@@ -68,6 +75,13 @@ Initial public release.
 - 複数カーソルの貼り付け検査に設定済みの合計容量上限を適用し、容量上限メッセージを明確化。
 - コマンド名、設定項目名と説明、ステータスバーメッセージの日本語・英語表示に対応。
 - Windowsでキーボードまたはマウスによる範囲選択を開始したとき、IMEをOFFにする設定を追加。既定で有効とし、IMEが `F8` などのファンクションキー操作を先取りする問題を回避。
+
+### 0.2.5
+
+- `configurationDefaults`で`editor.editContext`の推奨デフォルトを`false`へ変更。ユーザー設定を書き換えず、IME使用中も`F8`のWZ風切り取りが動作する入力方式を使用。
+- 利用者が`editor.editContext: true`を明示している場合はその設定を優先し、IMEが`F8`を処理するため本拡張の切り取りが実行されない可能性があることをREADMEへ追記。
+- `editor.editContext`の実効値が`true`の場合、「設定を開く」ボタン付きの通知を行う。
+- EditContextの通知状態だけを安全に削除するメンテナンス用コマンドを追加。
 
 ### 0.2.4
 

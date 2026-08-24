@@ -50,6 +50,9 @@
   "main": "./extension.js",
   "l10n": "./l10n",
   "contributes": {
+    "configurationDefaults": {
+      "editor.editContext": false
+    },
     "commands": [
       {
         "command": "wzOperation.pickKeywordAndAddSelection",
@@ -74,6 +77,10 @@
       {
         "command": "wzOperation.pasteStack",
         "title": "%command.pasteStack.title%"
+      },
+      {
+        "command": "wzOperation.resetEditContextWarningState",
+        "title": "%command.resetEditContextWarningState.title%"
       }
     ],
     "configuration": {

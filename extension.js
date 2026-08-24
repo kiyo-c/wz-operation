@@ -301,6 +301,59 @@ function writeImeOffHelperRequest(request) {
   }
 }
 
+// editor.editContext警告
+// -----------------------------------------------------------------------------
+const EDIT_CONTEXT_WARNING_STATE_KEY = 'editContextWarningState';
+const EDIT_CONTEXT_WARNING_LIMIT = 2;
+const EDIT_CONTEXT_WARNING_MESSAGE = vscode.l10n.t(
+  'The setting "editor.editContext": true is specified in settings.json, so F8 cut cannot be used while the IME is active.'
+);
+const OPEN_SETTINGS_ACTION = vscode.l10n.t('Open Settings');
+
+/**
+ * editor.editContextがtrueの場合、現在のバージョンで最大2回まで通知する。
+ * バージョンが変わった場合は通知回数をリセットする。
+ *
+ * @param {vscode.ExtensionContext} context 拡張機能の実行コンテキスト。
+ * @returns {Promise<void>} 通知状態の保存と通知処理の完了を表すPromise。
+ */
+async function warnIfEditContextEnabled(context) {
+  const currentVersion = context.extension.packageJSON.version;
+  const savedState = context.globalState.get(EDIT_CONTEXT_WARNING_STATE_KEY);
+
+  // 更新またはダウングレードでバージョンが変わった場合は回数を引き継がない。
+  const state =
+    savedState && savedState.version === currentVersion
+      ? savedState
+      : { version: currentVersion, notificationCount: 0 };
+
+  // 推奨デフォルトのfalseが有効な場合や、通知上限へ達した場合は何もしない。
+  const editContextEnabled = vscode.workspace
+    .getConfiguration('editor')
+    .get('editContext', false);
+  if (!editContextEnabled || state.notificationCount >= EDIT_CONTEXT_WARNING_LIMIT) {
+    return;
+  }
+
+  // 通知を閉じる前に終了しても再表示されないよう、表示前に回数を保存する。
+  await context.globalState.update(EDIT_CONTEXT_WARNING_STATE_KEY, {
+    version: currentVersion,
+    notificationCount: state.notificationCount + 1
+  });
+
+  // 設定画面を直接開けるアクション付きで警告する。
+  const selectedAction = await vscode.window.showWarningMessage(
+    EDIT_CONTEXT_WARNING_MESSAGE,
+    OPEN_SETTINGS_ACTION
+  );
+  if (selectedAction === OPEN_SETTINGS_ACTION) {
+    await vscode.commands.executeCommand(
+      'workbench.action.openSettings',
+      { query: '@id:editor.editContext' }
+    );
+  }
+}
+
 /**
  * 常駐中の補助プロセスへIME OFF要求を送る。
  *
@@ -458,6 +511,24 @@ function handleTextEditorSelectionChange(event) {
   requestImeOffForEditor(event.textEditor);
 }
 
+/**
+ * editor.editContext警告の通知済み状態だけを削除する。
+ *
+ * @param {vscode.ExtensionContext} context 拡張機能の実行コンテキスト。
+ * @returns {Promise<void>} 通知状態の削除と完了通知を表すPromise。
+ */
+async function resetEditContextWarningState(context) {
+  // globalState内の本機能専用キーだけを削除する。
+  await context.globalState.update(EDIT_CONTEXT_WARNING_STATE_KEY, undefined);
+
+  // 次回起動時に通知判定が再実行されることを利用者へ伝える。
+  await vscode.window.showInformationMessage(
+    vscode.l10n.t(
+      'The EditContext notification state was reset. It will be checked again the next time VS Code starts.'
+    )
+  );
+}
+
 // -----------------------------------------------------------------------------
 // F5系: キーワード専用バッファ
 // -----------------------------------------------------------------------------
@@ -540,6 +611,16 @@ function collapseSelectionToEnd(selection) {
 function compareNumbers(left, right) {
   // 差を返すことで小さい数値が先に並ぶようにする。
   return left - right;
+}
+
+function clearPickedKeywordSelectionForDocument(document) {
+  if (
+    document.isClosed &&
+    pickedKeywordSelection &&
+    pickedKeywordSelection.document === document
+  ) {
+    pickedKeywordSelection = undefined;
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -777,7 +858,7 @@ function pushClipStack(text) {
  * @param {readonly vscode.Selection[]} selections 容量を調べる選択範囲。
  * @returns {number} UTF-16換算の合計容量。
  */
-function selectedTextBytes(editor, selections) {
+function selectionRangesBytes(editor, selections) {
   // 各選択範囲のUTF-16コード単位数をオフセットから集計する。
   let codeUnits = 0;
   for (const selection of selections) {
@@ -786,10 +867,23 @@ function selectedTextBytes(editor, selections) {
     codeUnits += end - start;
   }
 
-  // 選択範囲を結合するときに挿入する改行コードの容量を加算する。
-  const eol = editor.document.eol === vscode.EndOfLine.CRLF ? '\r\n' : '\n';
-  codeUnits += eol.length * Math.max(0, selections.length - 1);
   return codeUnits * 2;
+}
+
+/**
+ * 複数の選択範囲を結合した場合の容量を、文字列生成前に算出する。
+ *
+ * @param {vscode.TextEditor} editor 選択範囲を持つエディター。
+ * @param {readonly vscode.Selection[]} selections 容量を調べる選択範囲。
+ * @returns {number} UTF-16換算の合計容量。
+ */
+function selectedTextBytes(editor, selections) {
+  // 選択範囲間へ挿入する文書の改行コード分を加算する。
+  const eolCodeUnits = editor.document.eol === vscode.EndOfLine.CRLF ? 2 : 1;
+  return (
+    selectionRangesBytes(editor, selections) +
+    eolCodeUnits * Math.max(0, selections.length - 1) * 2
+  );
 }
 
 /**
@@ -985,23 +1079,39 @@ async function cutToStack() {
     return;
   }
 
-  // 選択範囲がなければ、各カーソルの現在行を切り取り対象とする。
-  let selections = editor.selections.filter(isNonEmptySelection);
-  const cutsWholeLines = selections.length === 0;
+  const editorSelections = editor.selections;
+  let selections;
+  let cutsWholeLines;
 
-  if (cutsWholeLines) {
-    // 同じ行に複数カーソルがある場合の重複削除を防ぐ。
-    const lineNumbers = new Set();
-    for (const selection of editor.selections) {
-      lineNumbers.add(selection.active.line);
-    }
+  if (editorSelections.length === 1) {
+    const selection = editorSelections[0];
+    cutsWholeLines = selection.isEmpty;
+    selections = cutsWholeLines
+      ? [editor.document.lineAt(selection.active.line).rangeIncludingLineBreak]
+      : editorSelections;
+  } else {
+    selections = editorSelections.filter((selection) => !selection.isEmpty);
+    cutsWholeLines = selections.length === 0;
 
-    // 行番号順に、改行を含む行全体の範囲へ変換する。
-    selections = [];
-    const sortedLineNumbers = [...lineNumbers].sort(compareNumbers);
-    for (const lineNumber of sortedLineNumbers) {
-      selections.push(editor.document.lineAt(lineNumber).rangeIncludingLineBreak);
+    if (cutsWholeLines) {
+      const lineNumbers = new Set();
+      for (const selection of editorSelections) {
+        lineNumbers.add(selection.active.line);
+      }
+
+      selections = [...lineNumbers]
+        .sort((a, b) => a - b)
+        .map((lineNumber) => editor.document.lineAt(lineNumber).rangeIncludingLineBreak);
     }
+  }
+
+  const bytes = cutsWholeLines
+    ? selectionRangesBytes(editor, selections)
+    : selectedTextBytes(editor, selections);
+  const { itemBytes } = cachedClipStackLimits;
+  if (bytes > itemBytes) {
+    showClipItemTooLargeMessage();
+    return;
   }
 
   // 行切り取りは元の改行を保持し、通常選択は選択間に文書の改行を挿入する。
@@ -1182,9 +1292,9 @@ function handleConfigurationChange(event) {
  * 拡張機能を有効化し、設定監視と各コマンドを登録する。
  *
  * @param {vscode.ExtensionContext} context 拡張機能のコンテキスト。
- * @returns {void}
+ * @returns {Promise<void>}
  */
-function activate(context) {
+async function activate(context) {
   // コマンドや選択監視が動作する前に、現在の設定値をキャッシュへ反映する。
   refreshClipStackLimits();
   refreshImeOffSetting();
@@ -1216,6 +1326,7 @@ function activate(context) {
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration(handleConfigurationChange),
     new vscode.Disposable(stopImeOffHelper),
+    vscode.workspace.onDidCloseTextDocument(clearPickedKeywordSelectionForDocument),
     vscode.commands.registerCommand(
       'wzOperation.pickKeywordAndAddSelection',
       pickKeywordAndAddSelection
@@ -1227,8 +1338,15 @@ function activate(context) {
     vscode.commands.registerCommand('wzOperation.cutToStack', cutToStack),
     vscode.commands.registerCommand('wzOperation.copyToStack', copyToStack),
     vscode.commands.registerCommand('wzOperation.pasteAndPopStack', pasteAndPopStack),
-    vscode.commands.registerCommand('wzOperation.pasteStack', pasteStack)
+    vscode.commands.registerCommand('wzOperation.pasteStack', pasteStack),
+    vscode.commands.registerCommand(
+      'wzOperation.resetEditContextWarningState',
+      () => resetEditContextWarningState(context)
+    )
   );
+
+  // コマンド登録後、現在の設定に応じてバージョン単位の警告を行う。
+  await warnIfEditContextEnabled(context);
 }
 
 /**

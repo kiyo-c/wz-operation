@@ -1,5 +1,6 @@
 {
   "extension.displayName": "WZ Keymap",
+  "command.toggleSelectionMode.title": "WZ Keymap: 範囲選択モード切り替え",
   "extension.description": "WZ Editorの操作感に着想を得たVisual Studio Code用キーボード操作拡張です。",
   "command.pickKeywordAndAddSelection.title": "WZ Keymap: キーワード取得 + 次の一致も選択",
   "command.pastePickedKeyword.title": "WZ Keymap: 取得したキーワードを貼り付け",

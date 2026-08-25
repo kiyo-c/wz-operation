@@ -2,7 +2,7 @@
   "name": "wz-operation",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "publisher": "kiyoc",
   "author": {
     "name": "kiyoc"
@@ -21,6 +21,8 @@
     "keybinding",
     "keyboard",
     "F5",
+    "F6",
+    "F7",
     "F8",
     "F9",
     "word",
@@ -53,6 +55,10 @@
       "editor.editContext": false
     },
     "commands": [
+      {
+        "command": "wzOperation.toggleSelectionMode",
+        "title": "%command.toggleSelectionMode.title%"
+      },
       {
         "command": "wzOperation.pickKeywordAndAddSelection",
         "title": "%command.pickKeywordAndAddSelection.title%"
@@ -120,6 +126,86 @@
       }
     },
     "keybindings": [
+      {
+        "command": "wzOperation.cancelSelectionMode",
+        "key": "escape",
+        "when": "editorTextFocus && wzOperation.selectionMode"
+      },
+      {
+        "command": "actions.find",
+        "key": "f6",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "editor.action.startFindReplaceAction",
+        "key": "f7",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "wzOperation.toggleSelectionMode",
+        "key": "f10",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "cursorLeftSelect",
+        "key": "left",
+        "when": "editorTextFocus && wzOperation.selectionMode && !suggestWidgetVisible"
+      },
+      {
+        "command": "cursorRightSelect",
+        "key": "right",
+        "when": "editorTextFocus && wzOperation.selectionMode && !suggestWidgetVisible"
+      },
+      {
+        "command": "cursorUpSelect",
+        "key": "up",
+        "when": "editorTextFocus && wzOperation.selectionMode && !suggestWidgetVisible"
+      },
+      {
+        "command": "cursorDownSelect",
+        "key": "down",
+        "when": "editorTextFocus && wzOperation.selectionMode && !suggestWidgetVisible"
+      },
+      {
+        "command": "cursorHomeSelect",
+        "key": "home",
+        "when": "editorTextFocus && wzOperation.selectionMode && !suggestWidgetVisible"
+      },
+      {
+        "command": "cursorEndSelect",
+        "key": "end",
+        "when": "editorTextFocus && wzOperation.selectionMode && !suggestWidgetVisible"
+      },
+      {
+        "command": "cursorPageUpSelect",
+        "key": "pageup",
+        "when": "editorTextFocus && wzOperation.selectionMode && !suggestWidgetVisible"
+      },
+      {
+        "command": "cursorPageDownSelect",
+        "key": "pagedown",
+        "when": "editorTextFocus && wzOperation.selectionMode && !suggestWidgetVisible"
+      },
+      {
+        "command": "cursorWordStartLeftSelect",
+        "key": "ctrl+left",
+        "when": "editorTextFocus && wzOperation.selectionMode && !suggestWidgetVisible"
+      },
+      {
+        "command": "cursorWordEndRightSelect",
+        "key": "ctrl+right",
+        "when": "editorTextFocus && wzOperation.selectionMode && !suggestWidgetVisible"
+      },
+      {
+        "command": "cursorTopSelect",
+        "key": "ctrl+home",
+        "when": "editorTextFocus && wzOperation.selectionMode && !suggestWidgetVisible"
+      },
+      {
+        "command": "cursorBottomSelect",
+        "key": "ctrl+end",
+        "when": "editorTextFocus && wzOperation.selectionMode && !suggestWidgetVisible"
+      },
       {
         "command": "wzOperation.pickKeywordAndAddSelection",
         "key": "f5",

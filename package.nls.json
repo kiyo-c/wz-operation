@@ -1,6 +1,7 @@
 {
   "extension.displayName": "WZ Keymap",
   "extension.description": "WZ Editor-inspired keyboard operations for Visual Studio Code.",
+  "command.toggleSelectionMode.title": "WZ Keymap: Toggle Selection Mode",
   "command.pickKeywordAndAddSelection.title": "WZ Keymap: Capture Keyword and Select Next Match",
   "command.pastePickedKeyword.title": "WZ Keymap: Paste Captured Keyword",
   "command.cutToStack.title": "WZ Keymap: Cut Selection to Copy Stack",

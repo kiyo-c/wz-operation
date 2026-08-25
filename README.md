@@ -20,10 +20,13 @@ Tired of moving your little finger to Ctrl for Ctrl+C, Ctrl+V, Ctrl+X, and simil
 | --- | --- |
 | `F5` | Capture a keyword and add the next match to the selection |
 | `Shift+F5` | Paste the keyword captured with F5 |
+| `F6` | Open the editor Find control (same as Ctrl+F) |
+| `F7` | Open the editor Replace control (same as Ctrl+H) |
 | `F8` | Cut to the copy stack; also copy to the OS clipboard when integration is enabled |
 | `Shift+F8` | Copy to the copy stack; also copy to the OS clipboard when integration is enabled |
 | `F9` | Paste and remove the top stack item; when empty, fall back to the OS clipboard if integration is enabled |
 | `Shift+F9` | Paste and retain the top stack item; when empty, fall back to the OS clipboard if integration is enabled |
+| `F10` | Toggle WZ-style selection mode |
 
 The `F5` keyword buffer and the `F8` / `F9` copy stack are **completely separate storage areas**.
 
@@ -82,6 +85,12 @@ When OS clipboard integration is enabled and the copy stack is empty, both `F9` 
 When `F9` consumes a stack item that the extension most recently mirrored to the operating system clipboard, that clipboard text is also cleared if it is still unchanged. Different clipboard content copied afterward is preserved.
 
 Run `WZ Keymap: Paste from Copy Stack List` from the Command Palette to paste a selected item without removing it. Use `WZ Keymap: Paste and Consume from Copy Stack List` to remove the selected item only after a successful paste. Both lists are displayed newest-first. `WZ Keymap: Clear Copy Stack` removes all items and resets its used capacity to zero.
+
+### F10 — Selection mode
+
+Press `F10` to start a selection at each active cursor. While selection mode is active, the arrow keys, Home/End, PageUp/PageDown, Ctrl+Left/Right, and Ctrl+Home/End extend the selections as if Shift were locked.
+
+Press `F10` or Escape to leave selection mode, clear the selections, and keep each cursor at its active end. F8 and Shift+F8 perform their normal cut/copy operation and then leave the mode. Switching editors also leaves the mode automatically. Completion-list navigation keeps its normal behavior while suggestions are visible.
 
 ### Separate F5 buffer and copy stack
 
@@ -145,6 +154,7 @@ Other display languages fall back to English.
 
 To change the keybindings, assign any keys to the following commands:
 
+- `WZ Keymap: Toggle Selection Mode`
 - `WZ Keymap: Capture Keyword and Select Next Match`
 - `WZ Keymap: Paste Captured Keyword`
 - `WZ Keymap: Cut Selection to Copy Stack`
@@ -176,10 +186,13 @@ CTRL+C, CTRL+V, CTRL+X etc.. 小指をCTRLに移動させる操作に嫌気が�
 | --- | --- |
 | `F5` | キーワード取得 + 次の一致も選択 |
 | `Shift+F5` | F5で取得したキーワードを貼り付け |
+| `F6` | エディターの検索窓を開く（Ctrl+Fと同等） |
+| `F7` | エディターの置換窓を開く（Ctrl+Hと同等） |
 | `F8` | コピースタックへ切り取り。連携ONならOSクリップボードにもコピー |
 | `Shift+F8` | コピースタックへコピー。連携ONならOSクリップボードにもコピー |
 | `F9` | スタック先頭を貼り付けて消費。空かつ連携ONならOSクリップボードへフォールバック |
 | `Shift+F9` | スタック先頭を貼り付けて保持。空かつ連携ONならOSクリップボードへフォールバック |
+| `F10` | WZ形式の範囲選択モードを切り替え |
 
 `F5` 系のキーワードバッファと `F8` / `F9` 系のコピースタックは **完全に別領域** です。
 
@@ -238,6 +251,12 @@ OSクリップボード連携がONでコピースタックが空の場合、`F9`
 `F9`で消費するスタック項目が、本拡張から最後にOSクリップボードへ同期した項目であり、その内容が変わっていない場合は、OSクリップボード側の同じテキストも消去します。その後にコピーされた異なる内容は保持します。
 
 コマンドパレットから`WZ Keymap: コピースタック一覧から貼り付け`を実行すると、選択項目を削除せずに貼り付けます。`WZ Keymap: コピースタック一覧から貼り付けて消費`では、貼り付け成功後に選択項目を削除します。どちらもスタック項目を新しい順に一覧表示します。`WZ Keymap: コピースタックをクリア`では全履歴を削除し、使用容量を0へ戻します。
+
+### F10 — 範囲選択モード
+
+`F10`を押すと、各カーソルの現在位置を起点に範囲選択モードを開始します。モード中は、矢印キー、Home/End、PageUp/PageDown、Ctrl+Left/Right、Ctrl+Home/Endが、Shiftを固定したように選択範囲を拡張します。
+
+もう一度`F10`またはEscapeを押すと、選択範囲を解除して各カーソルをactive側の位置に残します。F8とShift+F8は通常どおり切り取り・コピーを実行してから範囲選択モードを終了します。エディターを切り替えた場合も自動的に終了します。補完候補の表示中は候補一覧の移動キー操作を優先します。
 
 ### F5バッファとコピースタックは別領域
 
@@ -301,6 +320,7 @@ F8、Shift+F8、F9、Shift+F9の操作に成功すると、現在の項目数と
 
 キーバインドを変更したい場合は、以下のコマンドを任意のキーへ割り当てます。
 
+- `WZ Keymap: 範囲選択モード切り替え`
 - `WZ Keymap: キーワード取得 + 次の一致も選択`
 - `WZ Keymap: 取得したキーワードを貼り付け`
 - `WZ Keymap: 単行or選択範囲を切り取りしてコピースタックへ追加`

@@ -12,7 +12,5 @@
   "configuration.maxTotalSizeMiB.title": "コピースタック全体の最大サイズ",
   "configuration.maxTotalSizeMiB.description": "コピースタック全体の最大サイズ（MiB）。UTF-16換算で計算します。",
   "configuration.maxItemSizeMiB.title": "コピースタック1項目の最大サイズ",
-  "configuration.maxItemSizeMiB.description": "コピースタック1項目の最大サイズ（MiB）。UTF-16換算で計算し、全体の上限より大きい場合は全体の上限を適用します。",
-  "configuration.turnImeOffWhenSelectionStarts.title": "範囲選択開始時にIMEをOFFにする",
-  "configuration.turnImeOffWhenSelectionStarts.description": "Windowsでキーボードまたはマウスによる範囲選択を開始したとき、F8などのファンクションキー操作がVS Codeへ届くようにIMEをOFFにします。選択中もIMEをONのままにしたい場合は無効にしてください。"
+  "configuration.maxItemSizeMiB.description": "コピースタック1項目の最大サイズ（MiB）。UTF-16換算で計算し、全体の上限より大きい場合は全体の上限を適用します。"
 }

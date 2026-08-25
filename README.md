@@ -6,13 +6,13 @@
 
 ## English
 
-**WZ Operation** is a VS Code extension that provides keyboard operations inspired by the feel of WZ Editor.
+**WZ Operation** recreates some of WZ Editor's efficient keyboard operations and provides a fast keyboard-driven workflow.
 
 > **This is an unofficial extension.** It is not affiliated with the developers or distributors of WZ Editor.
 
-It recreates a selection of the efficient keyboard operations long available in WZ Editor, providing a comfortable key-driven editing workflow in VS Code.
+It uses less frequently used function keys to reduce common operations to a single keystroke.
 
-Frequently used operations are assigned to familiar function keys, reducing them to a small number of keystrokes.
+Tired of moving your little finger to Ctrl for Ctrl+C, Ctrl+V, Ctrl+X, and similar operations?
 
 ### Key bindings
 
@@ -48,25 +48,25 @@ If the selection created by `F5` is still active, it is cleared and the keyword 
 These bindings follow the WZ Editor key layout.
 
 - `F8`: Push the selected range onto the copy stack and **cut** it. With no selection, cut the current line.
-- `Shift+F8`: Push the selected range onto the copy stack and **copy** it.
+- `Shift+F8`: Push the selected range onto the copy stack and **copy** it. With no selection, copy the current line.
 
 Text is stored in the extension's own text stack, separately from the operating system clipboard.
 
-### IME behavior on Windows
+### F8 with an active IME and EditContext
 
-On Windows, the extension turns the IME off once when a keyboard or mouse text selection starts. This prevents an enabled IME from consuming function keys such as `F8` for reconversion before VS Code can invoke this extension.
+To make `F8` cutting work correctly while an IME is active, this extension contributes a recommended default value of `false` for VS Code's `editor.editContext` setting. This default is supplied through `configurationDefaults`; it does not modify user or workspace settings. It applies only while the extension is enabled and only when the user has not explicitly specified a value.
 
-The extension waits until Shift, Ctrl, Alt, and Windows keys are released, then sends the standard Windows **IME Off** key only while the same window remains in the foreground. It does not install a low-level keyboard hook or select a particular IME product.
+```json
+"editor.editContext": false
+```
 
-For this Windows-only operation, the extension starts a bundled native helper while it is active. The helper receives only fixed control commands—never selected text—uses no network communication, telemetry, or elevation, and checks only whether modifier keys are currently held without recording keystrokes. Its source code and reproducible build command are included in [`native/`](native/README.md).
+If the user explicitly specifies `"editor.editContext": true` in a settings file, that value takes precedence. In this state, the IME processes `F8` while text is selected, so this extension's `F8` cut command might not run.
 
-This behavior is enabled by default and can be changed in VS Code Settings:
+When the effective value of `editor.editContext` is `true`, the extension displays a notification with an **Open Settings** button so that the problem can be reviewed. The notification is displayed at most twice for each extension version.
 
-- **Turn IME Off When a Selection Starts** (`wzOperation.keyboard.turnImeOffWhenSelectionStarts`)
+To test the notification again, run `WZ Operation: Reset EditContext Notification State` from the Command Palette. This removes only this extension's EditContext notification state and checks whether to show the notification again the next time VS Code starts.
 
-If you want to replace selected text by typing Japanese immediately, turn the IME on again after selecting the text, or disable this setting. The setting has no effect outside Windows.
-
-If the helper cannot start, the status bar reports that automatic IME-off is unavailable; the other extension commands remain available. Turn the setting off and on to retry.
+To use this extension's `F8` cut operation while an IME is active, remove the explicit `true` setting for `editor.editContext` or change it to `false`.
 
 ### F9 / Shift+F9 — Paste from the stack
 
@@ -142,6 +142,7 @@ To change the keybindings, assign any keys to the following commands:
 - `WZ Operation: Copy Selection to Copy Stack`
 - `WZ Operation: Paste and Consume from Copy Stack`
 - `WZ Operation: Paste from Copy Stack`
+- `WZ Operation: Reset EditContext Notification State`
 
 ---
 
@@ -149,13 +150,11 @@ To change the keybindings, assign any keys to the following commands:
 
 ## 日本語
 
-**WZ操作** は、WZ Editorの操作感に着想を得たキーボード操作を実現する拡張機能です。
+**WZ操作** は、WZ Editorの効率的なキーボード操作の一部を再現し、軽快なキー操作を実現します。
 
 > **非公式拡張です。** 本拡張は WZ Editor の開発元・販売元とは関係ありません。
 
-WZ Editorの効率的なキーボード操作の一部を再現し、軽快なキー操作を実現することを目的としています。
-
-使用頻度の高いファンクションキーを活用し、頻繁に使用する操作を少ないストロークで簡略化します。
+使用頻度の低いファンクションキーを活用し、頻繁に使用する操作をワンストロークで簡略化します。
 
 CTRL+C, CTRL+V, CTRL+X etc.. 小指をCTRLに移動させる操作に嫌気が差していませんか？
 
@@ -193,7 +192,7 @@ VS Code標準の便利な「次の一致も選択」操作をそのまま使い�
 WZ Editorのキー配置に合わせています。
 
 - `F8`: 選択開始位置から選択終了位置までをコピースタックへ積んで **切り取り**。未選択時は現在行を1行切り取り
-- `Shift+F8`: 選択範囲をコピースタックへ積んで **コピー**
+- `Shift+F8`: 選択範囲をコピースタックへ積んで **コピー**。未選択時は現在行を1行コピー
 
 OSのクリップボードとは別に、本拡張専用のテキストスタックへ保存します。
 
@@ -212,22 +211,6 @@ OSのクリップボードとは別に、本拡張専用のテキストスタッ
 通知動作を再確認する場合は、コマンドパレットから`WZ操作: EditContext通知状態をリセット`を実行してください。本拡張のEditContext通知状態だけを削除し、次回のVS Code起動時に通知を再判定します。
 
 IME使用中も本拡張の`F8`切り取りを利用する場合は、`editor.editContext`の明示的な`true`設定を削除するか、`false`へ変更してください。
-
-### WindowsでのIME動作
-
-Windowsでは、キーボードまたはマウスで範囲選択を開始したとき、IMEを1回だけOFFにします。これにより、IMEがONの状態でも `F8` などのファンクションキーが再変換操作としてIMEに先取りされず、VS Codeから本拡張を呼び出せるようにします。
-
-Shift、Ctrl、Alt、Windowsキーが離されるのを待ち、選択開始時と同じウィンドウが前面にある場合だけ、Windows標準の **IME OFF** キーを送信します。低レベルキーボードフックは使用せず、特定のIME製品も指定しません。
-
-このWindows専用処理では、拡張機能の動作中だけ同梱のネイティブ補助プロセスを起動します。補助プロセスへ渡すのは固定の制御コマンドだけであり、選択テキストは渡しません。ネットワーク通信、テレメトリー、権限昇格は行わず、修飾キーが押されているかだけを確認してキー入力内容は記録しません。ソースコードと再現可能なビルド手順は [`native/`](native/README.md) に同梱しています。
-
-この動作は既定で有効です。VS Codeの設定画面から変更できます。
-
-- **範囲選択開始時にIMEをOFFにする** (`wzOperation.keyboard.turnImeOffWhenSelectionStarts`)
-
-選択範囲をすぐ日本語入力で置き換えたい場合は、選択後にIMEを再度ONにするか、この設定を無効にしてください。Windows以外ではこの設定は動作に影響しません。
-
-補助プロセスを起動できない場合は、IMEの自動OFFを利用できないことをステータスバーへ表示します。それ以外の拡張機能は引き続き利用できます。設定を一度OFFにしてからONにすると再試行します。
 
 ### F9 / Shift+F9 — スタック貼り付け
 
@@ -303,4 +286,4 @@ F5で取得したキーワードがF8/F9の履歴へ混ざることはなく、F
 - `WZ操作: 単行or選択範囲をコピースタックへ追加`
 - `WZ操作: コピースタックから貼り付けて消費`
 - `WZ操作: コピースタックから貼り付け`
-
+- `WZ操作: EditContext通知状態をリセット`

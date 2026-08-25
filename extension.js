@@ -1,306 +1,8 @@
 'use strict';
 
-const { spawn } = require('child_process');
 const vscode = require('vscode');
 
 // -----------------------------------------------------------------------------
-// Windows IME対策: 選択開始時にIMEをOFFへ切り替える
-// -----------------------------------------------------------------------------
-// VS Codeの公開APIにはIMEを直接切り替える機能がないため、Windows専用の補助プロセスへ依頼する。
-const IME_OFF_HELPER_X64_RELATIVE_PATH = 'native/ime-off-helper-x64.exe';
-const IME_OFF_HELPER_X86_RELATIVE_PATH = 'native/ime-off-helper-x86.exe';
-const IME_OFF_HELPER_ARM64_RELATIVE_PATH = 'native/ime-off-helper-arm64.exe';
-const IME_OFF_REQUEST = 'off\n';
-const IME_OFF_CANCEL_REQUEST = 'cancel\n';
-const IME_OFF_EXIT_REQUEST = 'exit\n';
-const IME_OFF_HELPER_FORCE_KILL_DELAY_MS = 250;
-let cachedTurnImeOffWhenSelectionStarts = true;
-let imeOffHelperPath = undefined;
-let imeOffHelper = undefined;
-let imeOffHelperUnavailable = false;
-let imeOffHelperFailureShown = false;
-const imeOffRequestedByEditor = new WeakMap();
-
-/**
- * 選択開始時にIMEをOFFへ切り替える設定を再読み込みする。
- *
- * @returns {void}
- */
-function refreshImeOffSetting() {
-  // 設定がまだ定義されていない環境でも、合意した既定動作である有効として扱う。
-  const configuration = vscode.workspace.getConfiguration('wzOperation.keyboard');
-  cachedTurnImeOffWhenSelectionStarts = configuration.get(
-    'turnImeOffWhenSelectionStarts',
-    true
-  ) === true;
-}
-
-/**
- * 実行中のWindowsアーキテクチャに対応するIME補助プロセスのパスを取得する。
- *
- * @param {vscode.ExtensionContext} context 拡張機能のコンテキスト。
- * @returns {string|undefined} 利用可能な補助プロセスの絶対パス。
- */
-function resolveImeOffHelperPath(context) {
-  // Windows以外ではIME補助プロセスを利用しない。
-  if (process.platform !== 'win32') {
-    return undefined;
-  }
-
-  // 64ビットNode.jsではネイティブのx64版を選択する。
-  if (process.arch === 'x64') {
-    return context.asAbsolutePath(IME_OFF_HELPER_X64_RELATIVE_PATH);
-  }
-
-  // ARM64版のVS Codeでは、同じアーキテクチャの補助プロセスを選択する。
-  if (process.arch === 'arm64') {
-    return context.asAbsolutePath(IME_OFF_HELPER_ARM64_RELATIVE_PATH);
-  }
-
-  // 32ビットNode.jsではWindows x86版の補助プロセスを選択する。
-  if (process.arch === 'ia32') {
-    return context.asAbsolutePath(IME_OFF_HELPER_X86_RELATIVE_PATH);
-  }
-
-  // 想定外のアーキテクチャでは、通常機能を保ったままIME連携だけを利用不可とする。
-  return undefined;
-}
-
-/**
- * IME自動OFFの補助処理を利用できないことを、一度だけユーザーへ通知する。
- *
- * @returns {void}
- */
-function showImeOffHelperUnavailableMessage() {
-  // 同じ障害について選択操作のたびに通知を繰り返さない。
-  if (imeOffHelperFailureShown) {
-    return;
-  }
-  imeOffHelperFailureShown = true;
-
-  // 設定のOFF・ONで再試行できることを、現在の表示言語で案内する。
-  vscode.window.setStatusBarMessage(
-    vscode.l10n.t(
-      'WZ Operation: Automatic IME-off is unavailable. Turn the setting off and on to retry.'
-    ),
-    5000
-  );
-}
-
-/**
- * IME補助処理を現在のセッションで利用不能として記録する。
- *
- * @returns {void}
- */
-function markImeOffHelperUnavailable() {
-  // 通常の編集コマンドは維持したまま、IME連携だけを停止して理由を通知する。
-  imeOffHelperUnavailable = true;
-  showImeOffHelperUnavailableMessage();
-}
-
-/**
- * IME補助プロセスを利用不能として停止する。
- *
- * @param {import('child_process').ChildProcess} helper 停止対象の補助プロセス。
- * @returns {void}
- */
-function disableImeOffHelper(helper) {
-  // 既に置き換えられたプロセスから遅れて届いたイベントは無視する。
-  if (imeOffHelper !== helper) {
-    return;
-  }
-
-  // 同じセッション中に起動失敗を繰り返さないよう、IME連携だけを無効化する。
-  imeOffHelper = undefined;
-  markImeOffHelperUnavailable();
-
-  // まだ動作中なら停止を要求し、拡張機能本体から切り離す。
-  try {
-    if (helper.exitCode === null && !helper.killed) {
-      helper.kill();
-    }
-  } catch {
-    // 停止処理の失敗は拡張機能の通常操作へ影響させない。
-  }
-}
-
-/**
- * IME補助プロセスの起動または実行に失敗したときのイベントを処理する。
- *
- * @param {import('child_process').ChildProcess} helper 対象の補助プロセス。
- * @returns {void}
- */
-function handleImeOffHelperFailure(helper) {
-  // 一度だけ利用不可を通知し、このセッションのIME連携だけを停止する。
-  disableImeOffHelper(helper);
-}
-
-/**
- * IME補助プロセスへの要求の書き込み完了を処理する。
- *
- * @param {import('child_process').ChildProcess} helper 要求を送った補助プロセス。
- * @param {Error|null|undefined} error 書き込みに失敗した場合のエラー。
- * @returns {void}
- */
-function handleImeOffHelperRequestWritten(helper, error) {
-  // 正常に書き込めた場合は、次の選択開始まで追加処理を行わない。
-  if (!error) {
-    return;
-  }
-
-  // パイプが切断されている場合は補助プロセスを利用不能として扱う。
-  disableImeOffHelper(helper);
-}
-
-/**
- * Windows専用のIME補助プロセスを起動する。
- *
- * @returns {void}
- */
-function startImeOffHelper() {
-  // Windows以外、設定無効時、起動済みまたは利用不能判定後は何もしない。
-  if (
-    process.platform !== 'win32' ||
-    !cachedTurnImeOffWhenSelectionStarts ||
-    imeOffHelper ||
-    imeOffHelperUnavailable
-  ) {
-    return;
-  }
-
-  // 対応する実行ファイルがないアーキテクチャでは、IME連携を利用不可として記録する。
-  if (!imeOffHelperPath) {
-    markImeOffHelperUnavailable();
-    return;
-  }
-
-  /** @type {import('child_process').ChildProcess} */
-  let helper;
-  try {
-    // シェルを介さず非表示で起動し、標準入力だけを要求送信用に接続する。
-    helper = spawn(imeOffHelperPath, [String(process.pid)], {
-      shell: false,
-      windowsHide: true,
-      stdio: ['pipe', 'ignore', 'ignore']
-    });
-  } catch {
-    // 起動できない環境では、拡張機能本体を止めずIME連携だけを無効化する。
-    markImeOffHelperUnavailable();
-    return;
-  }
-
-  // イベントを登録する前に参照を保存し、非同期の起動失敗を正しく識別できるようにする。
-  imeOffHelper = helper;
-  helper.once('error', handleImeOffHelperFailure.bind(undefined, helper));
-  helper.once('exit', handleImeOffHelperFailure.bind(undefined, helper));
-  if (helper.stdin) {
-    helper.stdin.on('error', handleImeOffHelperFailure.bind(undefined, helper));
-  }
-}
-
-/**
- * 猶予時間後も動作しているIME補助プロセスを強制終了する。
- *
- * @param {import('child_process').ChildProcess} helper 終了確認対象の補助プロセス。
- * @returns {void}
- */
-function forceKillImeOffHelper(helper) {
-  // exit要求で既に終了していれば、追加の終了処理は行わない。
-  if (helper.exitCode !== null || helper.killed) {
-    return;
-  }
-
-  try {
-    // 応答しない補助プロセスだけを強制終了し、常駐したまま残ることを防ぐ。
-    helper.kill();
-  } catch {
-    // 終了確認中の競合による失敗は拡張機能の通常操作へ影響させない。
-  }
-}
-
-/**
- * 動作中のIME補助プロセスを終了する。
- *
- * @returns {void}
- */
-function stopImeOffHelper() {
-  // 起動していなければ終了処理は不要である。
-  const helper = imeOffHelper;
-  if (!helper) {
-    return;
-  }
-
-  // 終了に伴うexitイベントを障害と判定しないよう、先に現在の参照を解除する。
-  imeOffHelper = undefined;
-
-  // exit要求を送って標準入力を閉じ、補助プロセスへ正常終了の猶予を与える。
-  try {
-    if (helper.stdin && !helper.stdin.destroyed) {
-      helper.stdin.end(IME_OFF_EXIT_REQUEST);
-    }
-  } catch {
-    // 終了時の失敗は拡張機能の停止処理へ伝播させない。
-  }
-
-  // 正常終了しない場合に限り、短い猶予時間の後で強制終了する。
-  const forceKillTimer = setTimeout(
-    forceKillImeOffHelper,
-    IME_OFF_HELPER_FORCE_KILL_DELAY_MS,
-    helper
-  );
-
-  // 終了確認用タイマーだけでExtension Hostの終了を引き延ばさない。
-  forceKillTimer.unref();
-}
-
-/**
- * 現在の設定に合わせてIME補助プロセスの起動状態を更新する。
- *
- * @returns {void}
- */
-function synchronizeImeOffHelper() {
-  // 設定が無効になった場合は、常駐中の補助プロセスを終了する。
-  if (!cachedTurnImeOffWhenSelectionStarts) {
-    cancelImeOffRequest();
-    stopImeOffHelper();
-    return;
-  }
-
-  // 設定が有効なら、必要に応じて補助プロセスを起動する。
-  startImeOffHelper();
-}
-
-/**
- * 常駐中の補助プロセスへ1件の要求を送る。
- *
- * @param {string} request 改行で終わる要求文字列。
- * @returns {void}
- */
-function writeImeOffHelperRequest(request) {
-  // 起動失敗時や終了後は、通常の選択操作へ影響を与えず何もしない。
-  const helper = imeOffHelper;
-  if (
-    !helper ||
-    helper.exitCode !== null ||
-    helper.killed ||
-    !helper.stdin ||
-    !helper.stdin.writable
-  ) {
-    return;
-  }
-
-  try {
-    // 1要求を1行として送信し、完了時にパイプ切断の有無を確認する。
-    helper.stdin.write(
-      request,
-      handleImeOffHelperRequestWritten.bind(undefined, helper)
-    );
-  } catch {
-    // 同期的な書き込み失敗も、非同期エラーと同様にIME連携だけを停止する。
-    disableImeOffHelper(helper);
-  }
-}
-
 // editor.editContext警告
 // -----------------------------------------------------------------------------
 const EDIT_CONTEXT_WARNING_STATE_KEY = 'editContextWarningState';
@@ -352,163 +54,6 @@ async function warnIfEditContextEnabled(context) {
       { query: '@id:editor.editContext' }
     );
   }
-}
-
-/**
- * 常駐中の補助プロセスへIME OFF要求を送る。
- *
- * @returns {void}
- */
-function requestImeOff() {
-  // 選択開始に対応するIME OFF要求を共通の書き込み処理へ渡す。
-  writeImeOffHelperRequest(IME_OFF_REQUEST);
-}
-
-/**
- * 常駐中の補助プロセスへ保留中のIME OFF要求の取消を送る。
- *
- * @returns {void}
- */
-function cancelImeOffRequest() {
-  // フォーカス移動や選択解除後にIMEを切り替えないよう、保留中の要求を取り消す。
-  writeImeOffHelperRequest(IME_OFF_CANCEL_REQUEST);
-}
-
-/**
- * エディターの選択範囲に空でないものが含まれるか判定する。
- *
- * @param {readonly vscode.Selection[]} selections 判定対象の選択範囲。
- * @returns {boolean} 1つ以上の選択範囲にテキストが含まれている場合はtrue。
- */
-function containsNonEmptySelection(selections) {
-  // 複数カーソルを順に確認し、最初の非空選択が見つかった時点で判定を終える。
-  for (const selection of selections) {
-    if (!selection.isEmpty) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
- * エディターの現在の選択状態をIME OFF要求済み状態へ初期化する。
- *
- * @param {vscode.TextEditor} editor 初期化対象のエディター。
- * @returns {void}
- */
-function initializeImeOffSelectionState(editor) {
-  // 有効化前から存在する選択を、新しく開始された選択として誤検出しないよう記録する。
-  imeOffRequestedByEditor.set(
-    editor,
-    containsNonEmptySelection(editor.selections)
-  );
-}
-
-/**
- * 指定エディターの選択に対応するIME OFFを要求する。
- *
- * @param {vscode.TextEditor} editor 選択を持つエディター。
- * @returns {boolean} 要求対象として状態を更新した場合はtrue。
- */
-function requestImeOffForEditor(editor) {
-  // Windows、設定有効、ウィンドウのフォーカス、アクティブエディターをすべて確認する。
-  if (
-    process.platform !== 'win32' ||
-    !cachedTurnImeOffWhenSelectionStarts ||
-    !vscode.window.state.focused ||
-    vscode.window.activeTextEditor !== editor
-  ) {
-    return false;
-  }
-
-  // 同じ選択状態から重複要求しないよう、送信前に要求済みとして記録する。
-  imeOffRequestedByEditor.set(editor, true);
-  requestImeOff();
-  return true;
-}
-
-/**
- * フォーカス中のアクティブエディターに現在の選択状態を反映する。
- *
- * @returns {void}
- */
-function refreshActiveEditorImeOffState() {
-  // アクティブエディターがなければ、IME切り替えの対象は存在しない。
-  const editor = vscode.window.activeTextEditor;
-  if (!editor) {
-    return;
-  }
-
-  // 選択が空なら次の範囲選択に備えて再武装する。
-  if (!containsNonEmptySelection(editor.selections)) {
-    imeOffRequestedByEditor.set(editor, false);
-    return;
-  }
-
-  // 設定無効時は状態を保ち、OSへの要求を送らず早期に終了する。
-  if (!cachedTurnImeOffWhenSelectionStarts) {
-    return;
-  }
-
-  // 非空選択があるアクティブエディターについて、IME OFFを明示的に再要求する。
-  requestImeOffForEditor(editor);
-}
-
-/**
- * VS Codeウィンドウのフォーカス変更に合わせて保留中のIME要求を更新する。
- *
- * @param {vscode.WindowState} state 変更後のウィンドウ状態。
- * @returns {void}
- */
-function handleWindowStateChange(state) {
-  // フォーカスを失った場合は、別アプリへIME OFFを送らないよう保留要求を取り消す。
-  if (!state.focused) {
-    cancelImeOffRequest();
-    return;
-  }
-
-  // フォーカス復帰時は、現在のアクティブエディターの選択に対して再要求する。
-  refreshActiveEditorImeOffState();
-}
-
-/**
- * エディターの選択変更を監視し、選択開始時に1回だけIME OFFを要求する。
- *
- * @param {vscode.TextEditorSelectionChangeEvent} event 選択変更イベント。
- * @returns {void}
- */
-function handleTextEditorSelectionChange(event) {
-  // 全カーソルが空へ戻ったら、次の範囲選択に備えて再武装する。
-  if (!containsNonEmptySelection(event.selections)) {
-    if (
-      event.textEditor === vscode.window.activeTextEditor &&
-      imeOffRequestedByEditor.get(event.textEditor) === true
-    ) {
-      cancelImeOffRequest();
-    }
-    imeOffRequestedByEditor.set(event.textEditor, false);
-    return;
-  }
-
-  // 設定無効時は、非空選択についてそれ以上の判定や要求を行わない。
-  if (!cachedTurnImeOffWhenSelectionStarts) {
-    return;
-  }
-
-  // キーボードまたはマウスで行われた選択変更だけをIME切り替えの対象にする。
-  const isKeyboard = event.kind === vscode.TextEditorSelectionChangeKind.Keyboard;
-  const isMouse = event.kind === vscode.TextEditorSelectionChangeKind.Mouse;
-  if (!isKeyboard && !isMouse) {
-    return;
-  }
-
-  // 同じ非空選択を伸縮している間は、IME OFF要求を繰り返さない。
-  if (imeOffRequestedByEditor.get(event.textEditor) === true) {
-    return;
-  }
-  // フォーカス中のアクティブエディターなら、補助プロセスへIME OFFを依頼する。
-  requestImeOffForEditor(event.textEditor);
 }
 
 /**
@@ -599,18 +144,6 @@ function isNonEmptySelection(selection) {
 function collapseSelectionToEnd(selection) {
   // アンカーとアクティブ位置を末尾へそろえて選択を解除する。
   return new vscode.Selection(selection.end, selection.end);
-}
-
-/**
- * 数値を昇順に並べるための比較結果を返す。
- *
- * @param {number} left 左辺の数値。
- * @param {number} right 右辺の数値。
- * @returns {number} Array.prototype.sort用の比較結果。
- */
-function compareNumbers(left, right) {
-  // 差を返すことで小さい数値が先に並ぶようにする。
-  return left - right;
 }
 
 function clearPickedKeywordSelectionForDocument(document) {
@@ -714,16 +247,17 @@ function showConfiguredClipItemTooLargeMessage(limitMiB) {
  * 文字列を容量検査済みのコピースタック項目へ変換する。
  *
  * @param {string} text スタックへ保存する文字列。
+ * @param {number} [knownBytes] 事前計算済みのUTF-16換算容量。
  * @returns {{text: string, bytes: number}|null} 保存可能な項目。保存できない場合はnull。
  */
-function prepareClipItem(text) {
+function prepareClipItem(text, knownBytes) {
   // 空文字列はスタックへ保存しない。
   if (!text) {
     return null;
   }
 
   // 文字列生成後の実容量を現在の1項目上限と比較する。
-  const bytes = textBytes(text);
+  const bytes = knownBytes === undefined ? textBytes(text) : knownBytes;
   const { itemBytes, itemMiB } = cachedClipStackLimits;
   if (bytes > itemBytes) {
     showConfiguredClipItemTooLargeMessage(itemMiB);
@@ -832,23 +366,6 @@ function popLatestClipItem() {
   }
 
   return item;
-}
-
-/**
- * 文字列を検査してコピースタックへ追加する。
- *
- * @param {string} text 追加する文字列。
- * @returns {boolean} 追加できた場合はtrue。
- */
-function pushClipStack(text) {
-  // 空文字列と1項目上限超過を追加前に検査する。
-  const item = prepareClipItem(text);
-  if (!item) {
-    return false;
-  }
-
-  // 検査済み項目をスタックへ積む。
-  return pushPreparedClipItem(item);
 }
 
 /**
@@ -966,9 +483,6 @@ async function pickKeywordAndAddSelection() {
     return;
   }
 
-  // Command由来の選択変更は一般監視の対象外なので、F5の選択だけは明示的にIMEをOFFにする。
-  requestImeOffForEditor(editorBefore);
-
   // 選択文字列と選択状態をF5専用バッファへ記録する。
   const text = editorBefore.document.getText(selection);
   if (text.length > 0) {
@@ -1044,26 +558,52 @@ async function copyToStack() {
     return;
   }
 
-  // 空のカーソル位置を除き、コピー対象となる選択範囲だけを集める。
-  const selections = editor.selections.filter(isNonEmptySelection);
-  if (selections.length === 0) {
-    vscode.window.setStatusBarMessage(
-      vscode.l10n.t('WZ Operation: Select a range to copy.'),
-      2000
-    );
-    return;
+  // 選択範囲がなければ、各カーソルの現在行をコピー対象とする。
+  const editorSelections = editor.selections;
+  let selections;
+  let copiesWholeLines;
+
+  if (editorSelections.length === 1) {
+    const selection = editorSelections[0];
+    copiesWholeLines = selection.isEmpty;
+    selections = copiesWholeLines
+      ? [editor.document.lineAt(selection.active.line).rangeIncludingLineBreak]
+      : editorSelections;
+  } else {
+    selections = editorSelections.filter(isNonEmptySelection);
+    copiesWholeLines = selections.length === 0;
+
+    if (copiesWholeLines) {
+      // 同じ行に複数カーソルがある場合は、その行を1回だけコピーする。
+      const lineNumbers = new Set();
+      for (const selection of editorSelections) {
+        lineNumbers.add(selection.active.line);
+      }
+
+      selections = [...lineNumbers]
+        .sort((a, b) => a - b)
+        .map((lineNumber) => editor.document.lineAt(lineNumber).rangeIncludingLineBreak);
+    }
   }
 
   // 大きな文字列を生成する前に、選択範囲の容量が上限内か検査する。
   const { itemBytes, itemMiB } = cachedClipStackLimits;
-  if (selectedTextBytes(editor, selections) > itemBytes) {
+  const bytes = copiesWholeLines
+    ? selectionRangesBytes(editor, selections)
+    : selectedTextBytes(editor, selections);
+  if (bytes > itemBytes) {
     showConfiguredClipItemTooLargeMessage(itemMiB);
     return;
   }
 
-  // 選択テキストを生成し、コピースタックへ追加する。
-  const text = getSelectedText(editor, selections);
-  pushClipStack(text);
+  // 行コピーでは元の改行を保持し、通常選択では選択間に文書の改行を挿入する。
+  const text = copiesWholeLines
+    ? getWholeLineText(editor, selections)
+    : getSelectedText(editor, selections);
+  const item = prepareClipItem(text, bytes);
+  if (item) {
+    pushPreparedClipItem(item);
+  }
 }
 
 /**
@@ -1108,9 +648,9 @@ async function cutToStack() {
   const bytes = cutsWholeLines
     ? selectionRangesBytes(editor, selections)
     : selectedTextBytes(editor, selections);
-  const { itemBytes } = cachedClipStackLimits;
+  const { itemBytes, itemMiB } = cachedClipStackLimits;
   if (bytes > itemBytes) {
-    showClipItemTooLargeMessage();
+    showConfiguredClipItemTooLargeMessage(itemMiB);
     return;
   }
 
@@ -1120,7 +660,7 @@ async function cutToStack() {
     : getSelectedText(editor, selections);
 
   // 削除前に保存可能か検証し、容量超過時のデータ消失を防ぐ。
-  const item = prepareClipItem(text);
+  const item = prepareClipItem(text, bytes);
   if (!item) {
     return;
   }
@@ -1263,29 +803,6 @@ function handleConfigurationChange(event) {
     trimClipStackToConfiguredLimit();
   }
 
-  // 選択開始時のIME切り替え設定が変更されたか確認する。
-  const imeOffChanged = event.affectsConfiguration(
-    'wzOperation.keyboard.turnImeOffWhenSelectionStarts'
-  );
-  if (!imeOffChanged) {
-    return;
-  }
-
-  // OFFからONへ戻した場合に、以前の一時的な起動失敗を解除して再試行できるようにする。
-  const wasImeOffEnabled = cachedTurnImeOffWhenSelectionStarts;
-  refreshImeOffSetting();
-  if (!wasImeOffEnabled && cachedTurnImeOffWhenSelectionStarts) {
-    imeOffHelperUnavailable = false;
-    imeOffHelperFailureShown = false;
-  }
-
-  // 変更値を補助プロセスの起動状態へ直ちに反映する。
-  synchronizeImeOffHelper();
-
-  // 有効化直後に既存の非空選択があれば、その選択についてもIME OFFを要求する。
-  if (cachedTurnImeOffWhenSelectionStarts) {
-    refreshActiveEditorImeOffState();
-  }
 }
 
 /**
@@ -1297,35 +814,10 @@ function handleConfigurationChange(event) {
 async function activate(context) {
   // コマンドや選択監視が動作する前に、現在の設定値をキャッシュへ反映する。
   refreshClipStackLimits();
-  refreshImeOffSetting();
 
-  // 実行アーキテクチャに対応するWindows専用補助プロセスのパスを保存して起動する。
-  imeOffHelperPath = resolveImeOffHelperPath(context);
-  imeOffHelperUnavailable = false;
-  synchronizeImeOffHelper();
-
-  // Windowsでだけ選択状態を初期化し、選択変更とフォーカス変更の監視を登録する。
-  if (process.platform === 'win32') {
-    for (const editor of vscode.window.visibleTextEditors) {
-      initializeImeOffSelectionState(editor);
-    }
-
-    // フォーカス中の既存選択については、有効化直後にも1回だけIME OFFを要求する。
-    if (vscode.window.state.focused) {
-      refreshActiveEditorImeOffState();
-    }
-
-    // Windows固有の監視だけを、拡張機能終了時に破棄される購読へ追加する。
-    context.subscriptions.push(
-      vscode.window.onDidChangeTextEditorSelection(handleTextEditorSelectionChange),
-      vscode.window.onDidChangeWindowState(handleWindowStateChange)
-    );
-  }
-
-  // 共通の設定監視、補助プロセス終了処理、各コマンドを破棄対象へまとめる。
+  // 共通の設定監視と各コマンドを破棄対象へまとめる。
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration(handleConfigurationChange),
-    new vscode.Disposable(stopImeOffHelper),
     vscode.workspace.onDidCloseTextDocument(clearPickedKeywordSelectionForDocument),
     vscode.commands.registerCommand(
       'wzOperation.pickKeywordAndAddSelection',
@@ -1355,9 +847,6 @@ async function activate(context) {
  * @returns {void}
  */
 function deactivate() {
-  // 常駐補助プロセスを明示的に終了し、Extension Host終了後に残さない。
-  stopImeOffHelper();
-
   // pickedKeyword / clipStack はExtension Host終了時に自然に破棄される。
 }
 

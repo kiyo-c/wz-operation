@@ -11,7 +11,6 @@
 - Made the total copy-stack capacity and per-item capacity configurable through VS Code settings.
 - Applied the configured total copy-stack capacity to multiple-cursor paste checks and clarified capacity-limit messages.
 - Added English and Japanese localization for command names, setting names and descriptions, and status-bar messages.
-- On Windows, added an enabled-by-default option that turns the IME off when a keyboard or mouse selection starts, preventing the IME from consuming function-key commands such as `F8`.
 
 ### 0.2.5
 
@@ -74,7 +73,6 @@ Initial public release.
 - コピースタックの合計容量上限と1項目の容量上限を設定から変更できるようにした。
 - 複数カーソルの貼り付け検査に設定済みの合計容量上限を適用し、容量上限メッセージを明確化。
 - コマンド名、設定項目名と説明、ステータスバーメッセージの日本語・英語表示に対応。
-- Windowsでキーボードまたはマウスによる範囲選択を開始したとき、IMEをOFFにする設定を追加。既定で有効とし、IMEが `F8` などのファンクションキー操作を先取りする問題を回避。
 
 ### 0.2.5
 

@@ -41,9 +41,6 @@
     "color": "#1f2430",
     "theme": "dark"
   },
-  "extensionKind": [
-    "ui"
-  ],
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -99,13 +96,6 @@
           "minimum": 1,
           "title": "%configuration.maxItemSizeMiB.title%",
           "markdownDescription": "%configuration.maxItemSizeMiB.description%"
-        },
-        "wzOperation.keyboard.turnImeOffWhenSelectionStarts": {
-          "type": "boolean",
-          "default": true,
-          "scope": "application",
-          "title": "%configuration.turnImeOffWhenSelectionStarts.title%",
-          "markdownDescription": "%configuration.turnImeOffWhenSelectionStarts.description%"
         }
       }
     },

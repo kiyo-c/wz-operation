@@ -1,10 +1,8 @@
 {
   "WZ Operation: The selection exceeds the per-item copy-stack capacity ({0} MiB) and cannot be saved.": "WZ Operation: The selection exceeds the per-item copy-stack capacity ({0} MiB) and cannot be saved.",
   "WZ Operation: Capture a keyword with F5 first.": "WZ Operation: Capture a keyword with F5 first.",
-  "WZ Operation: Select a range to copy.": "WZ Operation: Select a range to copy.",
   "WZ Operation: The copy stack is empty.": "WZ Operation: The copy stack is empty.",
   "WZ Operation: The paste exceeds the total copy-stack capacity ({0} MiB) and cannot be performed.": "WZ Operation: The paste exceeds the total copy-stack capacity ({0} MiB) and cannot be performed.",
-  "WZ Operation: Automatic IME-off is unavailable. Turn the setting off and on to retry.": "WZ Operation: Automatic IME-off is unavailable. Turn the setting off and on to retry.",
   "The setting \"editor.editContext\": true is specified in settings.json, so F8 cut cannot be used while the IME is active.": "The setting \"editor.editContext\": true is specified in settings.json, so F8 cut cannot be used while the IME is active.",
   "Open Settings": "Open Settings",
   "The EditContext notification state was reset. It will be checked again the next time VS Code starts.": "The EditContext notification state was reset. It will be checked again the next time VS Code starts."

@@ -6,6 +6,14 @@
 
 ## English
 
+### 0.4.0
+
+- Added WZ-style F10 selection mode. F10 starts selection at every active cursor, movement keys extend the selections, and a second F10 collapses them at their active ends.
+- Added selection-mode bindings for arrow keys, Home/End, PageUp/PageDown, Ctrl+Left/Right, and Ctrl+Home/End.
+- Selection mode now ends automatically when switching editors and leaves completion-list navigation unchanged.
+- Added F6 for the editor Find control and F7 for the editor Replace control, equivalent to Ctrl+F and Ctrl+H.
+- Escape now cancels F10 selection mode. F8 and Shift+F8 leave the mode after performing their normal cut or copy operation.
+
 ### 0.3.2
 
 - Renamed the existing copy-stack list command to `WZ Keymap: Paste from Copy Stack List`; it pastes without consuming the selected item.
@@ -83,6 +91,14 @@ Initial public release.
 <a id="日本語"></a>
 
 ## 日本語
+
+### 0.4.0
+
+- WZ形式のF10範囲選択モードを追加。各カーソルの現在位置から選択を開始し、移動キーで範囲を拡張し、もう一度F10を押すとactive側へカーソルを残して選択を解除します。
+- 矢印キー、Home/End、PageUp/PageDown、Ctrl+Left/Right、Ctrl+Home/Endを範囲選択モードに対応させました。
+- エディター切り替え時は範囲選択モードを自動終了し、補完候補表示中のキー操作は変更しないようにしました。
+- Ctrl+Fと同等の検索窓を開くF6と、Ctrl+Hと同等の置換窓を開くF7を追加しました。
+- EscapeでF10範囲選択モードを解除できるようにしました。F8とShift+F8は通常の切り取り・コピー処理後に範囲選択モードを終了します。
 
 ### 0.3.2
 

@@ -2,6 +2,92 @@
 
 const vscode = require('vscode');
 
+// F10 selection mode is window-wide because setContext keys are window-wide.
+// Keep the editor that entered the mode so switching tabs can also collapse the
+// selections in the original editor before leaving the mode.
+let selectionMode = false;
+let selectionModeEditor;
+
+/**
+ * Collapse every selection to its active end.
+ *
+ * @param {vscode.TextEditor} editor
+ * @returns {void}
+ */
+function collapseSelectionsToActive(editor) {
+  editor.selections = editor.selections.map(
+    selection => new vscode.Selection(selection.active, selection.active)
+  );
+}
+
+/**
+ * Leave F10 selection mode and collapse each cursor to the active end.
+ *
+ * @returns {Promise<void>}
+ */
+async function cancelSelectionMode() {
+  if (!selectionMode) {
+    return;
+  }
+
+  const editor = selectionModeEditor;
+  selectionMode = false;
+  selectionModeEditor = undefined;
+
+  if (editor && !editor.document.isClosed) {
+    collapseSelectionsToActive(editor);
+  }
+
+  await vscode.commands.executeCommand(
+    'setContext',
+    'wzOperation.selectionMode',
+    false
+  );
+}
+
+/**
+ * Toggle WZ-style F10 selection mode. While active, contributed keybindings
+ * replace cursor movement commands with their Select variants.
+ *
+ * @returns {Promise<void>}
+ */
+async function toggleSelectionMode() {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    return;
+  }
+
+  if (selectionMode) {
+    await cancelSelectionMode();
+    return;
+  }
+
+  collapseSelectionsToActive(editor);
+  selectionMode = true;
+  selectionModeEditor = editor;
+
+  await vscode.commands.executeCommand(
+    'setContext',
+    'wzOperation.selectionMode',
+    true
+  );
+}
+
+/**
+ * Run an F8 command before leaving selection mode so its current selection is
+ * still available to the cut or copy operation.
+ *
+ * @param {() => Promise<void>} command
+ * @returns {Promise<void>}
+ */
+async function runF8CommandAndCancelSelectionMode(command) {
+  try {
+    await command();
+  } finally {
+    await cancelSelectionMode();
+  }
+}
+
 // -----------------------------------------------------------------------------
 // editor.editContext警告
 // -----------------------------------------------------------------------------
@@ -20,6 +106,7 @@ const OPEN_SETTINGS_ACTION = vscode.l10n.t('Open Settings');
  * @returns {Promise<void>} 通知状態の保存と通知処理の完了を表すPromise。
  */
 async function warnIfEditContextEnabled(context) {
+
   const currentVersion = context.extension.packageJSON.version;
   const savedState = context.globalState.get(EDIT_CONTEXT_WARNING_STATE_KEY);
 
@@ -800,7 +887,6 @@ async function pasteFromStack(popAfterPaste) {
     return;
   }
 
-
   // スタックを優先し、空の場合だけOSクリップボードへフォールバックする。
   const usesClipStack = !isClipStackEmpty();
 
@@ -946,7 +1032,6 @@ function handleConfigurationChange(event) {
   if (osClipboardIntegrationChanged) {
     refreshOsClipboardIntegration();
   }
-
 }
 
 /**
@@ -959,11 +1044,27 @@ async function activate(context) {
   // コマンドや選択監視が動作する前に、現在の設定値をキャッシュへ反映する。
   refreshClipStackLimits();
   refreshOsClipboardIntegration();
+  selectionMode = false;
+  selectionModeEditor = undefined;
+  await vscode.commands.executeCommand(
+    'setContext',
+    'wzOperation.selectionMode',
+    false
+  );
 
   // 共通の設定監視と各コマンドを破棄対象へまとめる。
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration(handleConfigurationChange),
     vscode.workspace.onDidCloseTextDocument(clearPickedKeywordSelectionForDocument),
+    vscode.window.onDidChangeActiveTextEditor(() => cancelSelectionMode()),
+    vscode.commands.registerCommand(
+      'wzOperation.toggleSelectionMode',
+      toggleSelectionMode
+    ),
+    vscode.commands.registerCommand(
+      'wzOperation.cancelSelectionMode',
+      cancelSelectionMode
+    ),
     vscode.commands.registerCommand(
       'wzOperation.pickKeywordAndAddSelection',
       pickKeywordAndAddSelection
@@ -972,8 +1073,14 @@ async function activate(context) {
       'wzOperation.pastePickedKeyword',
       pastePickedKeyword
     ),
-    vscode.commands.registerCommand('wzOperation.cutToStack', cutToStack),
-    vscode.commands.registerCommand('wzOperation.copyToStack', copyToStack),
+    vscode.commands.registerCommand(
+      'wzOperation.cutToStack',
+      () => runF8CommandAndCancelSelectionMode(cutToStack)
+    ),
+    vscode.commands.registerCommand(
+      'wzOperation.copyToStack',
+      () => runF8CommandAndCancelSelectionMode(copyToStack)
+    ),
     vscode.commands.registerCommand('wzOperation.pasteAndPopStack', pasteAndPopStack),
     vscode.commands.registerCommand('wzOperation.pasteStack', pasteStack),
     vscode.commands.registerCommand('wzOperation.showCopyStack', showCopyStack),

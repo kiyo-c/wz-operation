@@ -1,8 +1,8 @@
 {
   "name": "wz-operation",
-  "displayName": "WZ操作",
-  "description": "WZ Editorの操作感に着想を得たキーボード操作を実現する拡張機能です。",
-  "version": "0.2.5",
+  "displayName": "%extension.displayName%",
+  "description": "%extension.description%",
+  "version": "0.3.0",
   "publisher": "kiyoc",
   "author": {
     "name": "kiyoc"
@@ -29,7 +29,12 @@
     "cut",
     "paste",
     "clipboard stack",
-    "Japanese"
+    "Japanese",
+    "キーバインド",
+    "キーボード",
+    "コピー",
+    "切り取り",
+    "貼り付け"
   ],
   "icon": "media/icon.png",
   "galleryBanner": {
@@ -40,6 +45,7 @@
     "onStartupFinished"
   ],
   "main": "./extension.js",
+  "l10n": "./l10n",
   "contributes": {
     "configurationDefaults": {
       "editor.editContext": false
@@ -47,33 +53,52 @@
     "commands": [
       {
         "command": "wzOperation.pickKeywordAndAddSelection",
-        "title": "WZ操作: キーワード取得 + 次の一致も選択"
+        "title": "%command.pickKeywordAndAddSelection.title%"
       },
       {
         "command": "wzOperation.pastePickedKeyword",
-        "title": "WZ操作: 取得したキーワードを貼り付け"
+        "title": "%command.pastePickedKeyword.title%"
       },
       {
         "command": "wzOperation.cutToStack",
-        "title": "WZ操作: 選択範囲を切り取りしてコピースタックへ追加"
+        "title": "%command.cutToStack.title%"
       },
       {
         "command": "wzOperation.copyToStack",
-        "title": "WZ操作: 選択範囲をコピースタックへ追加"
+        "title": "%command.copyToStack.title%"
       },
       {
         "command": "wzOperation.pasteAndPopStack",
-        "title": "WZ操作: コピースタックから貼り付けて消費"
+        "title": "%command.pasteAndPopStack.title%"
       },
       {
         "command": "wzOperation.pasteStack",
-        "title": "WZ操作: コピースタックから貼り付け"
+        "title": "%command.pasteStack.title%"
       },
       {
         "command": "wzOperation.resetEditContextWarningState",
-        "title": "WZ操作: EditContext通知状態をリセット"
+        "title": "%command.resetEditContextWarningState.title%"
       }
     ],
+    "configuration": {
+      "title": "%configuration.title%",
+      "properties": {
+        "wzOperation.copyStack.maxTotalSizeMiB": {
+          "type": "number",
+          "default": 64,
+          "minimum": 1,
+          "title": "%configuration.maxTotalSizeMiB.title%",
+          "markdownDescription": "%configuration.maxTotalSizeMiB.description%"
+        },
+        "wzOperation.copyStack.maxItemSizeMiB": {
+          "type": "number",
+          "default": 16,
+          "minimum": 1,
+          "title": "%configuration.maxItemSizeMiB.title%",
+          "markdownDescription": "%configuration.maxItemSizeMiB.description%"
+        }
+      }
+    },
     "keybindings": [
       {
         "command": "wzOperation.pickKeywordAndAddSelection",

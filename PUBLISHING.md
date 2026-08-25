@@ -43,6 +43,9 @@ VSIXはGit管理対象にしません。`.gitignore` の `*.vsix` で除外し�
 
 - `F5` / `Shift+F5` が実機で正常動作する
 - `F8` / `Shift+F8` / `F9` / `Shift+F9` が実機で正常動作する
+- WindowsでIMEをONにしてShift+カーソルで複数行を選択したあと、`F8` が選択範囲全体を切り取る
+- `wzOperation.keyboard.turnImeOffWhenSelectionStarts` の有効・無効が即時反映される
+- VSIXに `native/ime-off-helper.c`、`native/ime-off-helper-x64.exe`、`native/ime-off-helper-x86.exe`、`native/ime-off-helper-arm64.exe`、`native/README.md` が収録されている
 - F5バッファとF8/F9コピースタックが互いに干渉しない
 - READMEの「非公式拡張」表記を維持している
 - アイコンが正常に表示される

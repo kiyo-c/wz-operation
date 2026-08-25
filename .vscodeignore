@@ -4,3 +4,4 @@
 .gitignore
 *.vsix
 PUBLISHING.md
+debug.log

@@ -21,7 +21,7 @@ Frequently used operations are assigned to familiar function keys, reducing them
 | `F5` | Capture a keyword and add the next match to the selection |
 | `Shift+F5` | Paste the keyword captured with F5 |
 | `F8` | Cut the selection and push it onto the copy stack; use the current line when there is no selection |
-| `Shift+F8` | Copy the selection and push it onto the copy stack |
+| `Shift+F8` | Copy the selection and push it onto the copy stack; use the current line when there is no selection |
 | `F9` | Paste the top stack item and remove it from the stack |
 | `Shift+F9` | Paste the top stack item without removing it from the stack |
 

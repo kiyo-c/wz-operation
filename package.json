@@ -2,7 +2,7 @@
   "name": "wz-operation",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "publisher": "kiyoc",
   "author": {
     "name": "kiyoc"
@@ -82,6 +82,14 @@
         "title": "%command.showCopyStack.title%"
       },
       {
+        "command": "wzOperation.pasteAndConsumeFromCopyStackList",
+        "title": "%command.pasteAndConsumeFromCopyStackList.title%"
+      },
+      {
+        "command": "wzOperation.clearCopyStack",
+        "title": "%command.clearCopyStack.title%"
+      },
+      {
         "command": "wzOperation.resetEditContextWarningState",
         "title": "%command.resetEditContextWarningState.title%"
       }
@@ -102,6 +110,12 @@
           "minimum": 1,
           "title": "%configuration.maxItemSizeMiB.title%",
           "markdownDescription": "%configuration.maxItemSizeMiB.description%"
+        },
+        "wzOperation.copyStack.osClipboardIntegration": {
+          "type": "boolean",
+          "default": true,
+          "title": "%configuration.osClipboardIntegration.title%",
+          "markdownDescription": "%configuration.osClipboardIntegration.description%"
         }
       }
     },

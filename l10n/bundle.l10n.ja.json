@@ -1,11 +1,11 @@
 {
-  "WZ Operation: The selection exceeds the per-item copy-stack capacity ({0} MiB) and cannot be saved.": "WZ Keymap: 選択内容がコピースタック1項目の容量上限（{0} MiB）を超えるため保存できません",
-  "WZ Operation: Capture a keyword with F5 first.": "WZ Keymap: 先にF5でキーワードを取得してください",
-  "WZ Operation: The copy stack and OS clipboard are empty.": "WZ Keymap: コピースタックとOSクリップボードが空です",
-  "WZ Operation: The copy stack is empty.": "WZ Keymap: コピースタックが空です",
+  "WZ Keymap: The selection exceeds the per-item copy-stack capacity ({0} MiB) and cannot be saved.": "WZ Keymap: 選択内容がコピースタック1項目の容量上限（{0} MiB）を超えるため保存できません",
+  "WZ Keymap: Capture a keyword with F5 first.": "WZ Keymap: 先にF5でキーワードを取得してください",
+  "WZ Keymap: The copy stack and OS clipboard are empty.": "WZ Keymap: コピースタックとOSクリップボードが空です",
+  "WZ Keymap: The copy stack is empty.": "WZ Keymap: コピースタックが空です",
   "Select a copy-stack item to paste": "貼り付けるコピースタック項目を選択",
-  "WZ Operation: Stack {0} items / {1} MiB": "WZ Keymap: スタック {0}項目 / {1} MiB",
-  "WZ Operation: The paste exceeds the total copy-stack capacity ({0} MiB) and cannot be performed.": "WZ Keymap: 貼り付けるデータ量がコピースタックの合計容量上限（{0} MiB）を超えるため実行できません",
+  "WZ Keymap: Stack {0} items / {1} KiB": "WZ Keymap: スタック {0}項目 / {1} KiB",
+  "WZ Keymap: The paste exceeds the total copy-stack capacity ({0} MiB) and cannot be performed.": "WZ Keymap: 貼り付けるデータ量がコピースタックの合計容量上限（{0} MiB）を超えるため実行できません",
   "The setting \"editor.editContext\": true is specified in settings.json, so F8 cut cannot be used while the IME is active.": "設定(setting.json)で \"editor.editContext\": true が指定されているため、IME使用中はF8の切り取りを利用できません。",
   "Open Settings": "設定を開く",
   "The EditContext notification state was reset. It will be checked again the next time VS Code starts.": "EditContextの通知状態をリセットしました。次回のVS Code起動時に通知を再判定します。"

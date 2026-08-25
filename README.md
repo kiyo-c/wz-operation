@@ -1,4 +1,4 @@
-# WZ Operation
+# WZ Keymap
 
 [English](#english) | [日本語](#日本語)
 
@@ -6,7 +6,7 @@
 
 ## English
 
-**WZ Operation** recreates some of WZ Editor's efficient keyboard operations and provides a fast keyboard-driven workflow.
+**WZ Keymap** recreates some of WZ Editor's efficient keyboard operations and provides a fast keyboard-driven workflow.
 
 > **This is an unofficial extension.** It is not affiliated with the developers or distributors of WZ Editor.
 
@@ -20,10 +20,10 @@ Tired of moving your little finger to Ctrl for Ctrl+C, Ctrl+V, Ctrl+X, and simil
 | --- | --- |
 | `F5` | Capture a keyword and add the next match to the selection |
 | `Shift+F5` | Paste the keyword captured with F5 |
-| `F8` | Cut to the copy stack and OS clipboard; use the current line when there is no selection |
-| `Shift+F8` | Copy to the copy stack and OS clipboard; use the current line when there is no selection |
-| `F9` | Paste and remove the top stack item; when empty, paste and clear the OS clipboard |
-| `Shift+F9` | Paste and retain the top stack item; use the OS clipboard when the stack is empty |
+| `F8` | Cut to the copy stack; also copy to the OS clipboard when integration is enabled |
+| `Shift+F8` | Copy to the copy stack; also copy to the OS clipboard when integration is enabled |
+| `F9` | Paste and remove the top stack item; when empty, fall back to the OS clipboard if integration is enabled |
+| `Shift+F9` | Paste and retain the top stack item; when empty, fall back to the OS clipboard if integration is enabled |
 
 The `F5` keyword buffer and the `F8` / `F9` copy stack are **completely separate storage areas**.
 
@@ -50,7 +50,7 @@ These bindings follow the WZ Editor key layout.
 - `F8`: Push the selected range onto the copy stack and **cut** it. With no selection, cut the current line.
 - `Shift+F8`: Push the selected range onto the copy stack and **copy** it. With no selection, copy the current line.
 
-Text is stored in the extension's own stack and is also copied to the operating system clipboard.
+Text is stored in the extension's own stack. OS clipboard integration is enabled by default and can be disabled with `wzOperation.copyStack.osClipboardIntegration`.
 
 ### F8 with an active IME and EditContext
 
@@ -64,7 +64,7 @@ If the user explicitly specifies `"editor.editContext": true` in a settings file
 
 When the effective value of `editor.editContext` is `true`, the extension displays a notification with an **Open Settings** button so that the problem can be reviewed. The notification is displayed at most twice for each extension version.
 
-To test the notification again, run `WZ Operation: Reset EditContext Notification State` from the Command Palette. This removes only this extension's EditContext notification state and checks whether to show the notification again the next time VS Code starts.
+To test the notification again, run `WZ Keymap: Reset EditContext Notification State` from the Command Palette. This removes only this extension's EditContext notification state and checks whether to show the notification again the next time VS Code starts.
 
 To use this extension's `F8` cut operation while an IME is active, remove the explicit `true` setting for `editor.editContext` or change it to `false`.
 
@@ -77,11 +77,11 @@ For example, after copying `AAA`, `BBB`, and `CCC` in that order, `CCC` is at th
 
 Pressing `Shift+F9` repeatedly continues to paste `CCC`. Pressing `F9` pastes and removes `CCC`, so the next `F9` pastes `BBB`.
 
-When the copy stack is empty, both `F9` and `Shift+F9` paste from the operating system clipboard. After a successful paste, `F9` clears the operating system clipboard while `Shift+F9` retains it. Neither operation adds the clipboard content to the copy stack.
+When OS clipboard integration is enabled and the copy stack is empty, both `F9` and `Shift+F9` paste from the operating system clipboard. After a successful paste, `F9` clears the operating system clipboard while `Shift+F9` retains it. Neither operation adds the clipboard content to the copy stack. When integration is disabled, an empty stack does not fall back to the OS clipboard.
 
 When `F9` consumes a stack item that the extension most recently mirrored to the operating system clipboard, that clipboard text is also cleared if it is still unchanged. Different clipboard content copied afterward is preserved.
 
-Run `WZ Keymap: Show Copy Stack` from the Command Palette to display stack items in newest-first order. Selecting an item pastes it without removing it from the stack.
+Run `WZ Keymap: Paste from Copy Stack List` from the Command Palette to paste a selected item without removing it. Use `WZ Keymap: Paste and Consume from Copy Stack List` to remove the selected item only after a successful paste. Both lists are displayed newest-first. `WZ Keymap: Clear Copy Stack` removes all items and resets its used capacity to zero.
 
 ### Separate F5 buffer and copy stack
 
@@ -89,7 +89,7 @@ The `F5` / `Shift+F5` keyword buffer and the `F8` / `Shift+F8` / `F9` / `Shift+F
 
 A keyword captured with F5 never enters the F8/F9 history, and F8/F9 copy contents never overwrite the F5 keyword.
 
-The F5 buffer does not use the operating system clipboard. F8 and Shift+F8 mirror copied text to it for interoperability with other applications.
+The F5 buffer does not use the operating system clipboard. When OS clipboard integration is enabled, F8 and Shift+F8 mirror copied text to it for interoperability with other applications.
 
 ### Copy-stack capacity and lifetime
 
@@ -99,6 +99,7 @@ These limits can be changed in VS Code Settings. The setting names are localized
 
 - **Maximum Total Copy-Stack Size** (`wzOperation.copyStack.maxTotalSizeMiB`)
 - **Maximum Copy-Stack Item Size** (`wzOperation.copyStack.maxItemSizeMiB`)
+- **OS Clipboard Integration** (`wzOperation.copyStack.osClipboardIntegration`, default: `true`)
 
 If the per-item limit is greater than the total limit, the total limit becomes the effective per-item limit.
 
@@ -108,7 +109,7 @@ For multiple-cursor pastes, the extension checks the logical data size by multip
 
 **The stack is currently volatile and kept only in memory.** Both the F5 buffer and copy stack are cleared when the VS Code Extension Host restarts.
 
-After a successful F8, Shift+F8, F9, or Shift+F9 operation, the status bar briefly shows the current item count and used capacity, for example `WZ Keymap: Stack 5 items / 1.8 MiB`.
+After a successful F8, Shift+F8, F9, or Shift+F9 operation, the status bar briefly shows the current item count and used capacity in KiB with two decimal places, for example `WZ Keymap: Stack 5 items / 18.25 KiB`.
 
 ### Existing keybindings.json entries
 
@@ -144,14 +145,16 @@ Other display languages fall back to English.
 
 To change the keybindings, assign any keys to the following commands:
 
-- `WZ Operation: Capture Keyword and Select Next Match`
-- `WZ Operation: Paste Captured Keyword`
-- `WZ Operation: Cut Selection to Copy Stack`
-- `WZ Operation: Copy Selection to Copy Stack`
-- `WZ Operation: Paste and Consume from Copy Stack`
-- `WZ Operation: Paste from Copy Stack`
-- `WZ Keymap: Show Copy Stack`
-- `WZ Operation: Reset EditContext Notification State`
+- `WZ Keymap: Capture Keyword and Select Next Match`
+- `WZ Keymap: Paste Captured Keyword`
+- `WZ Keymap: Cut Selection to Copy Stack`
+- `WZ Keymap: Copy Selection to Copy Stack`
+- `WZ Keymap: Paste and Consume from Copy Stack`
+- `WZ Keymap: Paste from Copy Stack`
+- `WZ Keymap: Paste from Copy Stack List`
+- `WZ Keymap: Paste and Consume from Copy Stack List`
+- `WZ Keymap: Clear Copy Stack`
+- `WZ Keymap: Reset EditContext Notification State`
 
 ---
 
@@ -173,10 +176,10 @@ CTRL+C, CTRL+V, CTRL+X etc.. 小指をCTRLに移動させる操作に嫌気が�
 | --- | --- |
 | `F5` | キーワード取得 + 次の一致も選択 |
 | `Shift+F5` | F5で取得したキーワードを貼り付け |
-| `F8` | コピースタックとOSクリップボードへ切り取り（未選択時は現在行） |
-| `Shift+F8` | コピースタックとOSクリップボードへコピー（未選択時は現在行） |
-| `F9` | スタック先頭を貼り付けて消費。空ならOSクリップボードから貼り付けて消去 |
-| `Shift+F9` | スタック先頭を貼り付けて保持。空ならOSクリップボードから貼り付け |
+| `F8` | コピースタックへ切り取り。連携ONならOSクリップボードにもコピー |
+| `Shift+F8` | コピースタックへコピー。連携ONならOSクリップボードにもコピー |
+| `F9` | スタック先頭を貼り付けて消費。空かつ連携ONならOSクリップボードへフォールバック |
+| `Shift+F9` | スタック先頭を貼り付けて保持。空かつ連携ONならOSクリップボードへフォールバック |
 
 `F5` 系のキーワードバッファと `F8` / `F9` 系のコピースタックは **完全に別領域** です。
 
@@ -203,7 +206,7 @@ WZ Editorのキー配置に合わせています。
 - `F8`: 選択開始位置から選択終了位置までをコピースタックへ積んで **切り取り**。未選択時は現在行を1行切り取り
 - `Shift+F8`: 選択範囲をコピースタックへ積んで **コピー**。未選択時は現在行を1行コピー
 
-本拡張専用のテキストスタックへ保存すると同時に、OSクリップボードにもコピーします。
+本拡張専用のテキストスタックへ保存します。OSクリップボード連携は既定でONで、`wzOperation.copyStack.osClipboardIntegration`からOFFにできます。
 
 ### IME使用中のF8とEditContext
 
@@ -230,11 +233,11 @@ IME使用中も本拡張の`F8`切り取りを利用する場合は、`editor.ed
 
 `Shift+F9` を何度押しても `CCC` が貼り付けられます。`F9` を押すと `CCC` を貼り付けたあとスタックから消費されるため、次の `F9` では `BBB` が貼り付けられます。
 
-コピースタックが空の場合、`F9` と `Shift+F9` はどちらもOSクリップボードから貼り付けます。貼り付け成功後、`F9` はOSクリップボードを消去し、`Shift+F9` は保持します。どちらもOSクリップボードの内容をコピースタックへ追加しません。
+OSクリップボード連携がONでコピースタックが空の場合、`F9` と `Shift+F9` はどちらもOSクリップボードから貼り付けます。貼り付け成功後、`F9` はOSクリップボードを消去し、`Shift+F9` は保持します。どちらもOSクリップボードの内容をコピースタックへ追加しません。連携がOFFの場合、空のスタックからOSクリップボードへはフォールバックしません。
 
 `F9`で消費するスタック項目が、本拡張から最後にOSクリップボードへ同期した項目であり、その内容が変わっていない場合は、OSクリップボード側の同じテキストも消去します。その後にコピーされた異なる内容は保持します。
 
-コマンドパレットから`WZ Keymap: コピースタックを表示`を実行すると、スタック項目を新しい順に一覧表示します。項目を選択すると、スタックから消費せずに貼り付けます。
+コマンドパレットから`WZ Keymap: コピースタック一覧から貼り付け`を実行すると、選択項目を削除せずに貼り付けます。`WZ Keymap: コピースタック一覧から貼り付けて消費`では、貼り付け成功後に選択項目を削除します。どちらもスタック項目を新しい順に一覧表示します。`WZ Keymap: コピースタックをクリア`では全履歴を削除し、使用容量を0へ戻します。
 
 ### F5バッファとコピースタックは別領域
 
@@ -242,7 +245,7 @@ IME使用中も本拡張の`F8`切り取りを利用する場合は、`editor.ed
 
 F5で取得したキーワードがF8/F9の履歴へ混ざることはなく、F8/F9のコピー内容がF5キーワードを上書きすることもありません。
 
-F5専用バッファはOSクリップボードを使用しません。F8とShift+F8は、他のアプリケーションと連携できるようコピー内容をOSクリップボードにも反映します。
+F5専用バッファはOSクリップボードを使用しません。OSクリップボード連携がONの場合、F8とShift+F8はコピー内容をOSクリップボードにも反映します。
 
 ### コピースタックの容量と保存期間
 
@@ -252,6 +255,7 @@ F5専用バッファはOSクリップボードを使用しません。F8とShift
 
 - **コピースタック全体の最大サイズ** (`wzOperation.copyStack.maxTotalSizeMiB`)
 - **コピースタック1項目の最大サイズ** (`wzOperation.copyStack.maxItemSizeMiB`)
+- **OSクリップボード連携** (`wzOperation.copyStack.osClipboardIntegration`, 既定値: `true`)
 
 1項目の上限を合計上限より大きく設定した場合は、合計上限が実効上限になります。
 
@@ -261,7 +265,7 @@ F5専用バッファはOSクリップボードを使用しません。F8とShift
 
 **現時点ではメモリ上に保持する揮発性スタックです。** F5専用バッファとコピースタックはいずれも、VS CodeのExtension Hostを再起動すると消去されます。
 
-F8、Shift+F8、F9、Shift+F9の操作に成功すると、現在の項目数と使用容量をステータスバーへ一時表示します（例：`WZ Keymap: スタック 5項目 / 1.8 MiB`）。
+F8、Shift+F8、F9、Shift+F9の操作に成功すると、現在の項目数と使用容量をKiB単位・小数点以下2桁でステータスバーへ一時表示します（例：`WZ Keymap: スタック 5項目 / 18.25 KiB`）。
 
 ### 既存の keybindings.json について
 
@@ -303,5 +307,7 @@ F8、Shift+F8、F9、Shift+F9の操作に成功すると、現在の項目数と
 - `WZ Keymap: 単行or選択範囲をコピースタックへ追加`
 - `WZ Keymap: コピースタックから貼り付けて消費`
 - `WZ Keymap: コピースタックから貼り付け`
-- `WZ Keymap: コピースタックを表示`
+- `WZ Keymap: コピースタック一覧から貼り付け`
+- `WZ Keymap: コピースタック一覧から貼り付けて消費`
+- `WZ Keymap: コピースタックをクリア`
 - `WZ Keymap: EditContext通知状態をリセット`

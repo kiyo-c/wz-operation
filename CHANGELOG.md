@@ -6,6 +6,14 @@
 
 ## English
 
+### 0.3.2
+
+- Renamed the existing copy-stack list command to `WZ Keymap: Paste from Copy Stack List`; it pastes without consuming the selected item.
+- Added `WZ Keymap: Paste and Consume from Copy Stack List`, which removes the selected item only after a successful paste.
+- Added `WZ Keymap: Clear Copy Stack` to remove all stack history and reset used capacity to zero.
+- Added the `wzOperation.copyStack.osClipboardIntegration` setting, enabled by default. When disabled, F8/Shift+F8 and F9/Shift+F9 operate only on the extension's internal stack.
+- Changed the status-bar copy-stack capacity display to KiB with two decimal places.
+
 ### 0.3.1
 
 - Mirrored F8 and Shift+F8 copy operations to the operating system clipboard while retaining the extension's copy stack.
@@ -75,6 +83,14 @@ Initial public release.
 <a id="日本語"></a>
 
 ## 日本語
+
+### 0.3.2
+
+- 既存のコピースタック一覧コマンドを`WZ Keymap: コピースタック一覧から貼り付け`へ改名。このコマンドでは選択項目を消費（削除）しません。
+- 選択項目を貼り付け成功後に削除する`WZ Keymap: コピースタック一覧から貼り付けて消費`コマンドを追加。
+- 全履歴を削除して使用容量を0へ戻す`WZ Keymap: コピースタックをクリア`コマンドを追加。
+- 既定値ONの`wzOperation.copyStack.osClipboardIntegration`設定を追加しました。OFFの場合、F8 / Shift+F8とF9 / Shift+F9は本拡張の内部スタックだけで動作します。
+- ステータスバーのコピースタック使用容量をKiB単位・小数点以下2桁で表示するよう変更。
 
 ### 0.3.1
 

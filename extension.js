@@ -167,6 +167,7 @@ let clipStack = [];
 let clipStackHead = 0;
 let clipStackBytes = 0;
 let mirroredClipboardItem;
+let osClipboardIntegrationEnabled = true;
 let cachedClipStackLimits = {
   totalBytes: DEFAULT_MAX_CLIP_STACK_MIB * 1024 * 1024,
   totalMiB: DEFAULT_MAX_CLIP_STACK_MIB,
@@ -215,6 +216,15 @@ function refreshClipStackLimits() {
   };
 }
 
+function refreshOsClipboardIntegration() {
+  osClipboardIntegrationEnabled = vscode.workspace
+    .getConfiguration('wzOperation.copyStack')
+    .get('osClipboardIntegration', true);
+  if (!osClipboardIntegrationEnabled) {
+    mirroredClipboardItem = undefined;
+  }
+}
+
 /**
  * 文字列の容量をUTF-16換算で算出する。
  *
@@ -237,7 +247,7 @@ function showConfiguredClipItemTooLargeMessage(limitMiB) {
   // ユーザーが原因を判断できるよう、現在の実効上限をメッセージに含める。
   vscode.window.setStatusBarMessage(
     vscode.l10n.t(
-      'WZ Operation: The selection exceeds the per-item copy-stack capacity ({0} MiB) and cannot be saved.',
+      'WZ Keymap: The selection exceeds the per-item copy-stack capacity ({0} MiB) and cannot be saved.',
       limitMiB
     ),
     3000
@@ -336,12 +346,12 @@ function isClipStackEmpty() {
  */
 function showClipStackStatus() {
   const itemCount = clipStack.length - clipStackHead;
-  const usedMiB = (clipStackBytes / (1024 * 1024)).toFixed(1);
+  const usedKiB = (clipStackBytes / 1024).toFixed(2);
   vscode.window.setStatusBarMessage(
     vscode.l10n.t(
-      'WZ Operation: Stack {0} items / {1} MiB',
+      'WZ Keymap: Stack {0} items / {1} KiB',
       itemCount,
-      usedMiB
+      usedKiB
     ),
     2000
   );
@@ -385,6 +395,30 @@ function popLatestClipItem() {
   }
 
   return item;
+}
+
+function removeClipItem(item) {
+  const index = clipStack.indexOf(item, clipStackHead);
+  if (index < 0) {
+    return false;
+  }
+
+  clipStack.splice(index, 1);
+  clipStackBytes -= item.bytes;
+  if (isClipStackEmpty()) {
+    clipStack = [];
+    clipStackHead = 0;
+    clipStackBytes = 0;
+  }
+  return true;
+}
+
+function clearCopyStack() {
+  clipStack = [];
+  clipStackHead = 0;
+  clipStackBytes = 0;
+  mirroredClipboardItem = undefined;
+  showClipStackStatus();
 }
 
 /**
@@ -528,7 +562,7 @@ async function pastePickedKeyword() {
   // F5でキーワードが取得されていなければユーザーへ通知する。
   if (pickedKeyword.length === 0) {
     vscode.window.setStatusBarMessage(
-      vscode.l10n.t('WZ Operation: Capture a keyword with F5 first.'),
+      vscode.l10n.t('WZ Keymap: Capture a keyword with F5 first.'),
       2500
     );
     return;
@@ -622,8 +656,10 @@ async function copyToStack() {
   const item = prepareClipItem(text, bytes);
   if (item) {
     pushPreparedClipItem(item);
-    await vscode.env.clipboard.writeText(text);
-    mirroredClipboardItem = item;
+    if (osClipboardIntegrationEnabled) {
+      await vscode.env.clipboard.writeText(text);
+      mirroredClipboardItem = item;
+    }
     showClipStackStatus();
   }
 }
@@ -712,8 +748,10 @@ async function cutToStack() {
   // 編集が成功したときだけスタックへ積む。
   if (edited) {
     pushPreparedClipItem(item);
-    await vscode.env.clipboard.writeText(text);
-    mirroredClipboardItem = item;
+    if (osClipboardIntegrationEnabled) {
+      await vscode.env.clipboard.writeText(text);
+      mirroredClipboardItem = item;
+    }
     showClipStackStatus();
   }
 }
@@ -736,7 +774,7 @@ async function pasteClipItem(item) {
   if (item.bytes > Math.floor(totalBytes / editor.selections.length)) {
     vscode.window.setStatusBarMessage(
       vscode.l10n.t(
-        'WZ Operation: The paste exceeds the total copy-stack capacity ({0} MiB) and cannot be performed.',
+        'WZ Keymap: The paste exceeds the total copy-stack capacity ({0} MiB) and cannot be performed.',
         totalMiB
       ),
       3000
@@ -770,16 +808,22 @@ async function pasteFromStack(popAfterPaste) {
   let item;
   if (usesClipStack) {
     item = getLatestClipItem();
-  } else {
+  } else if (osClipboardIntegrationEnabled) {
     const text = await vscode.env.clipboard.readText();
     if (!text) {
       vscode.window.setStatusBarMessage(
-        vscode.l10n.t('WZ Operation: The copy stack and OS clipboard are empty.'),
+        vscode.l10n.t('WZ Keymap: The copy stack and OS clipboard are empty.'),
         2000
       );
       return;
     }
     item = { text, bytes: textBytes(text) };
+  } else {
+    vscode.window.setStatusBarMessage(
+      vscode.l10n.t('WZ Keymap: The copy stack is empty.'),
+      2000
+    );
+    return;
   }
 
   const edited = await pasteClipItem(item);
@@ -805,10 +849,10 @@ async function pasteFromStack(popAfterPaste) {
   }
 }
 
-async function showCopyStack() {
+async function pasteFromCopyStackList(consumeAfterPaste) {
   if (isClipStackEmpty()) {
     vscode.window.setStatusBarMessage(
-      vscode.l10n.t('WZ Operation: The copy stack is empty.'),
+      vscode.l10n.t('WZ Keymap: The copy stack is empty.'),
       2000
     );
     return;
@@ -835,9 +879,23 @@ async function showCopyStack() {
   if (selected) {
     const edited = await pasteClipItem(selected.clipItem);
     if (edited) {
+      if (consumeAfterPaste) {
+        removeClipItem(selected.clipItem);
+        if (selected.clipItem === mirroredClipboardItem) {
+          mirroredClipboardItem = undefined;
+        }
+      }
       showClipStackStatus();
     }
   }
+}
+
+function showCopyStack() {
+  return pasteFromCopyStackList(false);
+}
+
+function pasteAndConsumeFromCopyStackList() {
+  return pasteFromCopyStackList(true);
 }
 
 /**
@@ -874,12 +932,19 @@ function handleConfigurationChange(event) {
   const itemChanged = event.affectsConfiguration(
     'wzOperation.copyStack.maxItemSizeMiB'
   );
+  const osClipboardIntegrationChanged = event.affectsConfiguration(
+    'wzOperation.copyStack.osClipboardIntegration'
+  );
   if (totalChanged || itemChanged) {
     // 変更後の設定値でキャッシュを再構築する。
     refreshClipStackLimits();
 
     // 合計上限が縮小された可能性があるため、保持中の項目を整理する。
     trimClipStackToConfiguredLimit();
+  }
+
+  if (osClipboardIntegrationChanged) {
+    refreshOsClipboardIntegration();
   }
 
 }
@@ -893,6 +958,7 @@ function handleConfigurationChange(event) {
 async function activate(context) {
   // コマンドや選択監視が動作する前に、現在の設定値をキャッシュへ反映する。
   refreshClipStackLimits();
+  refreshOsClipboardIntegration();
 
   // 共通の設定監視と各コマンドを破棄対象へまとめる。
   context.subscriptions.push(
@@ -911,6 +977,11 @@ async function activate(context) {
     vscode.commands.registerCommand('wzOperation.pasteAndPopStack', pasteAndPopStack),
     vscode.commands.registerCommand('wzOperation.pasteStack', pasteStack),
     vscode.commands.registerCommand('wzOperation.showCopyStack', showCopyStack),
+    vscode.commands.registerCommand(
+      'wzOperation.pasteAndConsumeFromCopyStackList',
+      pasteAndConsumeFromCopyStackList
+    ),
+    vscode.commands.registerCommand('wzOperation.clearCopyStack', clearCopyStack),
     vscode.commands.registerCommand(
       'wzOperation.resetEditContextWarningState',
       () => resetEditContextWarningState(context)

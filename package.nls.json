@@ -7,11 +7,15 @@
   "command.copyToStack.title": "WZ Keymap: Copy Selection to Copy Stack",
   "command.pasteAndPopStack.title": "WZ Keymap: Paste and Consume from Copy Stack",
   "command.pasteStack.title": "WZ Keymap: Paste from Copy Stack",
-  "command.showCopyStack.title": "WZ Keymap: Show Copy Stack",
+  "command.showCopyStack.title": "WZ Keymap: Paste from Copy Stack List",
+  "command.pasteAndConsumeFromCopyStackList.title": "WZ Keymap: Paste and Consume from Copy Stack List",
+  "command.clearCopyStack.title": "WZ Keymap: Clear Copy Stack",
   "command.resetEditContextWarningState.title": "WZ Keymap: Reset EditContext Notification State",
   "configuration.title": "WZ Keymap",
   "configuration.maxTotalSizeMiB.title": "Maximum Total Copy-Stack Size",
   "configuration.maxTotalSizeMiB.description": "Maximum total copy-stack size in MiB, calculated as UTF-16.",
   "configuration.maxItemSizeMiB.title": "Maximum Copy-Stack Item Size",
-  "configuration.maxItemSizeMiB.description": "Maximum size of one copy-stack item in MiB, calculated as UTF-16. If this is greater than the total limit, the total limit is used."
+  "configuration.maxItemSizeMiB.description": "Maximum size of one copy-stack item in MiB, calculated as UTF-16. If this is greater than the total limit, the total limit is used.",
+  "configuration.osClipboardIntegration.title": "OS Clipboard Integration",
+  "configuration.osClipboardIntegration.description": "When enabled, F8 and Shift+F8 also copy to the OS clipboard, and F9 commands fall back to it when the copy stack is empty."
 }

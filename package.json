@@ -2,7 +2,7 @@
   "name": "wz-operation",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "kiyoc",
   "author": {
     "name": "kiyoc"
@@ -34,7 +34,9 @@
     "キーボード",
     "コピー",
     "切り取り",
-    "貼り付け"
+    "貼り付け",
+    "クリップボード",
+    "スタック"
   ],
   "icon": "media/icon.png",
   "galleryBanner": {
@@ -74,6 +76,10 @@
       {
         "command": "wzOperation.pasteStack",
         "title": "%command.pasteStack.title%"
+      },
+      {
+        "command": "wzOperation.showCopyStack",
+        "title": "%command.showCopyStack.title%"
       },
       {
         "command": "wzOperation.resetEditContextWarningState",

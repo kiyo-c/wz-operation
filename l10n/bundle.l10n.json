@@ -1,7 +1,10 @@
 {
   "WZ Operation: The selection exceeds the per-item copy-stack capacity ({0} MiB) and cannot be saved.": "WZ Operation: The selection exceeds the per-item copy-stack capacity ({0} MiB) and cannot be saved.",
   "WZ Operation: Capture a keyword with F5 first.": "WZ Operation: Capture a keyword with F5 first.",
+  "WZ Operation: The copy stack and OS clipboard are empty.": "WZ Operation: The copy stack and OS clipboard are empty.",
   "WZ Operation: The copy stack is empty.": "WZ Operation: The copy stack is empty.",
+  "Select a copy-stack item to paste": "Select a copy-stack item to paste",
+  "WZ Operation: Stack {0} items / {1} MiB": "WZ Keymap: Stack {0} items / {1} MiB",
   "WZ Operation: The paste exceeds the total copy-stack capacity ({0} MiB) and cannot be performed.": "WZ Operation: The paste exceeds the total copy-stack capacity ({0} MiB) and cannot be performed.",
   "The setting \"editor.editContext\": true is specified in settings.json, so F8 cut cannot be used while the IME is active.": "The setting \"editor.editContext\": true is specified in settings.json, so F8 cut cannot be used while the IME is active.",
   "Open Settings": "Open Settings",

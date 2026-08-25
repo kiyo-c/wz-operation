@@ -6,6 +6,14 @@
 
 ## English
 
+### 0.3.1
+
+- Mirrored F8 and Shift+F8 copy operations to the operating system clipboard while retaining the extension's copy stack.
+- Made F9 and Shift+F9 paste from the operating system clipboard when the copy stack is empty; F9 clears it after a successful paste while Shift+F9 retains it.
+- When F9 consumes the stack item most recently mirrored to the OS clipboard, it now clears the mirrored text only if the clipboard is still unchanged.
+- Added a Command Palette action that shows the copy stack newest-first and pastes the selected item without consuming it.
+- Added a brief status-bar summary of copy-stack item count and used capacity after F8/F9 operations.
+
 ### 0.3.0
 
 - Made the total copy-stack capacity and per-item capacity configurable through VS Code settings.
@@ -67,6 +75,14 @@ Initial public release.
 <a id="日本語"></a>
 
 ## 日本語
+
+### 0.3.1
+
+- F8とShift+F8で、専用コピースタックを維持しながらOSクリップボードにもコピーするようにしました。
+- コピースタックが空の場合、F9とShift+F9でOSクリップボードから貼り付けるようにしました。貼り付け成功後、F9はOSクリップボードを消去し、Shift+F9は保持します。
+- F9が最後にOSクリップボードへ同期したスタック項目を消費する際、クリップボード内容が変わっていない場合に限り、同期したテキストも消去するようにしました。
+- コピースタックを新しい順に一覧表示し、選択項目を消費せず貼り付けるコマンドを追加しました。
+- F8/F9系の操作後、コピースタックの項目数と使用容量をステータスバーへ一時表示するようにしました。
 
 ### 0.3.0
 

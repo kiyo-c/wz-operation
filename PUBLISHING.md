@@ -1,4 +1,4 @@
-# WZ操作 — リリース手順
+# WZ Keymap — リリース手順
 
 この拡張は、Visual Studio Marketplace と GitHub Release は手動、Open VSX は GitHub Actions の手動実行で公開します。
 

@@ -166,6 +166,7 @@ const DEFAULT_MAX_CLIP_ITEM_MIB = 16;
 let clipStack = [];
 let clipStackHead = 0;
 let clipStackBytes = 0;
+let mirroredClipboardItem;
 let cachedClipStackLimits = {
   totalBytes: DEFAULT_MAX_CLIP_STACK_MIB * 1024 * 1024,
   totalMiB: DEFAULT_MAX_CLIP_STACK_MIB,
@@ -326,6 +327,24 @@ function compactClipStackIfNeeded() {
 function isClipStackEmpty() {
   // 先頭インデックスが配列末尾へ達していれば全項目が消費済みである。
   return clipStackHead >= clipStack.length;
+}
+
+/**
+ * 現在のコピースタック項目数と使用容量を一時的に表示する。
+ *
+ * @returns {void}
+ */
+function showClipStackStatus() {
+  const itemCount = clipStack.length - clipStackHead;
+  const usedMiB = (clipStackBytes / (1024 * 1024)).toFixed(1);
+  vscode.window.setStatusBarMessage(
+    vscode.l10n.t(
+      'WZ Operation: Stack {0} items / {1} MiB',
+      itemCount,
+      usedMiB
+    ),
+    2000
+  );
 }
 
 /**
@@ -603,6 +622,9 @@ async function copyToStack() {
   const item = prepareClipItem(text, bytes);
   if (item) {
     pushPreparedClipItem(item);
+    await vscode.env.clipboard.writeText(text);
+    mirroredClipboardItem = item;
+    showClipStackStatus();
   }
 }
 
@@ -690,6 +712,9 @@ async function cutToStack() {
   // 編集が成功したときだけスタックへ積む。
   if (edited) {
     pushPreparedClipItem(item);
+    await vscode.env.clipboard.writeText(text);
+    mirroredClipboardItem = item;
+    showClipStackStatus();
   }
 }
 
@@ -701,26 +726,12 @@ async function cutToStack() {
  * @param {boolean} popAfterPaste 貼り付け成功後に項目を削除する場合はtrue。
  * @returns {Promise<void>}
  */
-async function pasteFromStack(popAfterPaste) {
-  // 現在のエディターを取得し、未表示なら処理を終了する。
+async function pasteClipItem(item) {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
-    return;
+    return false;
   }
 
-  // 貼り付け対象がなければユーザーへ通知する。
-  if (isClipStackEmpty()) {
-    vscode.window.setStatusBarMessage(
-      vscode.l10n.t('WZ Operation: The copy stack is empty.'),
-      2000
-    );
-    return;
-  }
-
-  // LIFOスタックの最新項目を貼り付け対象として取得する。
-  const item = getLatestClipItem();
-
-  // 複数カーソルを含む論理データ量が設定された合計容量上限を超えないか検査する。
   const { totalBytes, totalMiB } = cachedClipStackLimits;
   if (item.bytes > Math.floor(totalBytes / editor.selections.length)) {
     vscode.window.setStatusBarMessage(
@@ -730,34 +741,102 @@ async function pasteFromStack(popAfterPaste) {
       ),
       3000
     );
-    return;
+    return false;
   }
 
-  /**
-   * 各カーソル位置または選択範囲へスタックの項目を設定する。
-   *
-   * @param {vscode.TextEditorEdit} editBuilder 編集操作のビルダー。
-   * @returns {void}
-   */
-  function replaceSelectionsWithClipItem(editBuilder) {
-    // 複数箇所への置換を1回の編集として実行する。
-    for (const selection of editor.selections) {
-      editBuilder.replace(selection, item.text);
-    }
-  }
-
-  // すべてのカーソル位置または選択範囲へ同じ項目を貼り付ける。
-  const edited = await editor.edit(
-    replaceSelectionsWithClipItem,
+  return editor.edit(
+    (editBuilder) => {
+      for (const selection of editor.selections) {
+        editBuilder.replace(selection, item.text);
+      }
+    },
     {
       undoStopBefore: true,
       undoStopAfter: true
     }
   );
+}
 
-  // F9では編集成功後だけ項目を消費し、失敗時はスタックに残す。
+async function pasteFromStack(popAfterPaste) {
+  if (!vscode.window.activeTextEditor) {
+    return;
+  }
+
+
+  // スタックを優先し、空の場合だけOSクリップボードへフォールバックする。
+  const usesClipStack = !isClipStackEmpty();
+
+  // OSクリップボードの内容はスタックへ追加せず、今回の貼り付けだけに使う。
+  let item;
+  if (usesClipStack) {
+    item = getLatestClipItem();
+  } else {
+    const text = await vscode.env.clipboard.readText();
+    if (!text) {
+      vscode.window.setStatusBarMessage(
+        vscode.l10n.t('WZ Operation: The copy stack and OS clipboard are empty.'),
+        2000
+      );
+      return;
+    }
+    item = { text, bytes: textBytes(text) };
+  }
+
+  const edited = await pasteClipItem(item);
+
+  // F9では、スタック由来の項目だけを編集成功後に消費する。
   if (edited && popAfterPaste) {
-    popLatestClipItem();
+    if (usesClipStack) {
+      const poppedItem = popLatestClipItem();
+      if (poppedItem === mirroredClipboardItem) {
+        const clipboardText = await vscode.env.clipboard.readText();
+        if (clipboardText === poppedItem.text) {
+          await vscode.env.clipboard.writeText('');
+        }
+        mirroredClipboardItem = undefined;
+      }
+    } else {
+      await vscode.env.clipboard.writeText('');
+      mirroredClipboardItem = undefined;
+    }
+  }
+  if (edited) {
+    showClipStackStatus();
+  }
+}
+
+async function showCopyStack() {
+  if (isClipStackEmpty()) {
+    vscode.window.setStatusBarMessage(
+      vscode.l10n.t('WZ Operation: The copy stack is empty.'),
+      2000
+    );
+    return;
+  }
+
+  const quickPickItems = [];
+  let displayIndex = 1;
+  for (let index = clipStack.length - 1; index >= clipStackHead; index--) {
+    const item = clipStack[index];
+    const preview = item.text.replace(/\s+/g, ' ').trim() || '␤';
+    const shortenedPreview = preview.length > 80
+      ? `${preview.slice(0, 80)}...`
+      : preview;
+    quickPickItems.push({
+      label: `${displayIndex}: ${shortenedPreview}`,
+      clipItem: item
+    });
+    displayIndex++;
+  }
+
+  const selected = await vscode.window.showQuickPick(quickPickItems, {
+    placeHolder: vscode.l10n.t('Select a copy-stack item to paste')
+  });
+  if (selected) {
+    const edited = await pasteClipItem(selected.clipItem);
+    if (edited) {
+      showClipStackStatus();
+    }
   }
 }
 
@@ -831,6 +910,7 @@ async function activate(context) {
     vscode.commands.registerCommand('wzOperation.copyToStack', copyToStack),
     vscode.commands.registerCommand('wzOperation.pasteAndPopStack', pasteAndPopStack),
     vscode.commands.registerCommand('wzOperation.pasteStack', pasteStack),
+    vscode.commands.registerCommand('wzOperation.showCopyStack', showCopyStack),
     vscode.commands.registerCommand(
       'wzOperation.resetEditContextWarningState',
       () => resetEditContextWarningState(context)

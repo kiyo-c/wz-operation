@@ -223,6 +223,25 @@ function isNonEmptySelection(selection) {
 }
 
 /**
+ * 最初の空でない選択範囲からキーワードを取得する。
+ * 未選択の場合は、プライマリカーソル位置の単語を取得する。
+ *
+ * @param {vscode.TextEditor} editor 取得対象のエディター。
+ * @returns {string} 選択文字列またはカーソル位置の単語。取得できない場合は空文字列。
+ */
+function getKeywordAtEditorSelection(editor) {
+  for (const selection of editor.selections) {
+    if (isNonEmptySelection(selection)) {
+      return editor.document.getText(selection);
+    }
+  }
+
+  const primarySelection = editor.selection;
+  const wordRange = editor.document.getWordRangeAtPosition(primarySelection.active);
+  return wordRange ? editor.document.getText(wordRange) : '';
+}
+
+/**
  * 選択範囲を末尾位置の空選択へ変換する。
  *
  * @param {vscode.Selection} selection 変換対象の選択範囲。
@@ -254,6 +273,7 @@ let clipStack = [];
 let clipStackHead = 0;
 let clipStackBytes = 0;
 let mirroredClipboardItem;
+let nextClipBatchId = 1;
 let osClipboardIntegrationEnabled = true;
 let cachedClipStackLimits = {
   totalBytes: DEFAULT_MAX_CLIP_STACK_MIB * 1024 * 1024,
@@ -588,47 +608,75 @@ function getWholeLineText(editor, selections) {
 
 /**
  * F5:
- * 1. VS Code標準の「次の一致も選択」をそのまま実行。
- * 2. その結果できた選択範囲の文字列をF5専用バッファへ保存。
+ * 選択文字列（未選択時はカーソル位置の単語）を取得し、
+ * VS Codeの検索窓の状態を変更せずに次の文字列一致を選択へ追加する。
  *
  * @returns {Promise<void>}
  */
 async function pickKeywordAndAddSelection() {
-  // コマンド開始時のエディターを取得し、未表示なら処理を終了する。
-  const editorBefore = vscode.window.activeTextEditor;
-  if (!editorBefore) {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
     return;
   }
 
-  // 前回記録した選択状態を無効化してから標準コマンドを実行する。
   pickedKeywordSelection = undefined;
 
-  // 既存のVS Code機能を直接呼ぶため、キーバインド再帰は起こらない。
-  await vscode.commands.executeCommand('editor.action.addSelectionToNextFindMatch');
-
-  // コマンド実行中にエディターが切り替わった場合は別文書から取得しない。
-  if (vscode.window.activeTextEditor !== editorBefore) {
+  let selections = editor.selections;
+  let text = getKeywordAtEditorSelection(editor);
+  if (!text) {
     return;
   }
 
-  // 標準コマンド実行後に作られた空でない選択範囲を取得する。
-  let selection;
-  for (const candidate of editorBefore.selections) {
-    if (isNonEmptySelection(candidate)) {
-      selection = candidate;
-      break;
+  // With an empty primary cursor, the first F5 selects its current word. This
+  // matches the first Ctrl+D step while avoiding the Find widget entirely.
+  if (selections.every((selection) => selection.isEmpty)) {
+    const wordRange = editor.document.getWordRangeAtPosition(editor.selection.active);
+    if (!wordRange) {
+      return;
+    }
+    selections = [new vscode.Selection(wordRange.start, wordRange.end)];
+    editor.selections = selections;
+  } else {
+    const documentText = editor.document.getText();
+    const occupiedRanges = selections
+      .filter(isNonEmptySelection)
+      .map((selection) => ({
+        start: editor.document.offsetAt(selection.start),
+        end: editor.document.offsetAt(selection.end)
+      }));
+    const lastEnd = occupiedRanges.reduce(
+      (maximum, range) => Math.max(maximum, range.end),
+      0
+    );
+    const candidateOffsets = [];
+    let offset = documentText.indexOf(text, lastEnd);
+    while (offset >= 0) {
+      candidateOffsets.push(offset);
+      offset = documentText.indexOf(text, offset + Math.max(1, text.length));
+    }
+    offset = documentText.indexOf(text, 0);
+    while (offset >= 0 && offset < lastEnd) {
+      candidateOffsets.push(offset);
+      offset = documentText.indexOf(text, offset + Math.max(1, text.length));
+    }
+
+    const nextOffset = candidateOffsets.find((candidateStart) => {
+      const candidateEnd = candidateStart + text.length;
+      return !occupiedRanges.some(
+        (range) => candidateStart < range.end && candidateEnd > range.start
+      );
+    });
+    if (nextOffset !== undefined) {
+      const nextSelection = new vscode.Selection(
+        editor.document.positionAt(nextOffset),
+        editor.document.positionAt(nextOffset + text.length)
+      );
+      editor.selections = [...selections, nextSelection];
     }
   }
-  if (!selection) {
-    return;
-  }
 
-  // 選択文字列と選択状態をF5専用バッファへ記録する。
-  const text = editorBefore.document.getText(selection);
-  if (text.length > 0) {
-    pickedKeyword = text;
-    rememberPickedKeywordSelection(editorBefore);
-  }
+  pickedKeyword = text;
+  rememberPickedKeywordSelection(editor);
 }
 
 /**
@@ -790,6 +838,62 @@ async function cutToStack() {
     }
   }
 
+  // Store a multi-selection cut as one item per cursor. The bottom selection
+  // is pushed first, making the top selection the next stack item to paste.
+  if (!cutsWholeLines && selections.length > 1) {
+    const orderedSelections = [...selections].sort((a, b) =>
+      editor.document.offsetAt(a.start) - editor.document.offsetAt(b.start)
+    );
+    const preparedItems = [];
+    let totalBytes = 0;
+    const batchId = nextClipBatchId++;
+
+    for (const selection of orderedSelections) {
+      const text = editor.document.getText(selection);
+      const bytes = selectionRangesBytes(editor, [selection]);
+      const item = prepareClipItem(text, bytes);
+      if (!item) {
+        return;
+      }
+      item.batchId = batchId;
+      preparedItems.push(item);
+      totalBytes += bytes;
+    }
+
+    if (totalBytes > cachedClipStackLimits.totalBytes) {
+      vscode.window.setStatusBarMessage(
+        vscode.l10n.t(
+          'WZ Keymap: The selection exceeds the total copy-stack capacity ({0} MiB) and cannot be saved.',
+          cachedClipStackLimits.totalMiB
+        ),
+        3000
+      );
+      return;
+    }
+
+    const edited = await editor.edit(
+      (editBuilder) => {
+        for (const selection of orderedSelections) {
+          editBuilder.delete(selection);
+        }
+      },
+      { undoStopBefore: true, undoStopAfter: true }
+    );
+
+    if (edited) {
+      for (let index = preparedItems.length - 1; index >= 0; index--) {
+        pushPreparedClipItem(preparedItems[index]);
+      }
+      const topItem = preparedItems[0];
+      if (osClipboardIntegrationEnabled) {
+        await vscode.env.clipboard.writeText(topItem.text);
+        mirroredClipboardItem = topItem;
+      }
+      showClipStackStatus();
+    }
+    return;
+  }
+
   const bytes = cutsWholeLines
     ? selectionRangesBytes(editor, selections)
     : selectedTextBytes(editor, selections);
@@ -883,8 +987,70 @@ async function pasteClipItem(item) {
 }
 
 async function pasteFromStack(popAfterPaste) {
-  if (!vscode.window.activeTextEditor) {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
     return;
+  }
+
+  // Distribute a multi-cut batch from the top cursor downward. F9 consumes
+  // the items after a successful edit; Shift+F9 retains the complete batch.
+  const latestItem = getLatestClipItem();
+  if (
+    editor.selections.length > 1 &&
+    latestItem &&
+    latestItem.batchId !== undefined
+  ) {
+    const orderedSelections = [...editor.selections].sort((a, b) =>
+      editor.document.offsetAt(a.start) - editor.document.offsetAt(b.start)
+    );
+    const items = [];
+    for (let index = clipStack.length - 1; index >= clipStackHead; index--) {
+      const candidate = clipStack[index];
+      if (candidate.batchId !== latestItem.batchId || items.length >= orderedSelections.length) {
+        break;
+      }
+      items.push(candidate);
+    }
+
+    if (items.length === orderedSelections.length) {
+      const totalBytes = items.reduce((sum, candidate) => sum + candidate.bytes, 0);
+      if (totalBytes > cachedClipStackLimits.totalBytes) {
+        vscode.window.setStatusBarMessage(
+          vscode.l10n.t(
+            'WZ Keymap: The paste exceeds the total copy-stack capacity ({0} MiB) and cannot be performed.',
+            cachedClipStackLimits.totalMiB
+          ),
+          3000
+        );
+        return;
+      }
+
+      const edited = await editor.edit(
+        (editBuilder) => {
+          for (let index = 0; index < orderedSelections.length; index++) {
+            editBuilder.replace(orderedSelections[index], items[index].text);
+          }
+        },
+        { undoStopBefore: true, undoStopAfter: true }
+      );
+
+      if (edited) {
+        if (popAfterPaste) {
+          for (let index = 0; index < items.length; index++) {
+            popLatestClipItem();
+          }
+          if (items.includes(mirroredClipboardItem)) {
+            const clipboardText = await vscode.env.clipboard.readText();
+            if (clipboardText === mirroredClipboardItem.text) {
+              await vscode.env.clipboard.writeText('');
+            }
+            mirroredClipboardItem = undefined;
+          }
+        }
+        showClipStackStatus();
+      }
+      return;
+    }
   }
 
   // スタックを優先し、空の場合だけOSクリップボードへフォールバックする。

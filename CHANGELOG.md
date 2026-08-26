@@ -6,6 +6,13 @@
 
 ## English
 
+### 0.4.1
+
+- Reimplemented F5's next-match selection without invoking VS Code's internal Find controller. This removes the flashing Find-option buttons and keyword-dependent match-case/whole-word state. F6/F7 continue to use the unmodified standard VS Code commands and seed their input from the F5 selection.
+- Fixed multi-selection F8/F9 handling. F8 now stores each selected range as an individual stack item, and F9 pastes the matching item at each cursor and consumes the items only after the edit succeeds.
+- Shift+F9 also distributes a multi-cut batch to the matching cursors while retaining all batch items.
+- If the multiple cursors are dismissed after F8, each F9 pastes and consumes the next individual item from the top of the stack.
+
 ### 0.4.0
 
 - Added WZ-style F10 selection mode. F10 starts selection at every active cursor, movement keys extend the selections, and a second F10 collapses them at their active ends.
@@ -91,6 +98,13 @@ Initial public release.
 <a id="日本語"></a>
 
 ## 日本語
+
+### 0.4.1
+
+- F5の「次の一致」選択をVS Code内部の検索コントローラーを呼ばずに実装し直しました。検索オプションボタンのちらつきと、キーワードによる大文字小文字・単語単位状態の差をなくしました。F6/F7は変更していないVS Code標準コマンドへ戻し、F5の選択範囲から検索語を設定します。
+- 複数カーソル選択でのF8/F9を修正。F8で各選択範囲を個別のスタック項目として保存し、F9で各カーソルへ対応する項目を貼り付け、編集成功後にまとめて消費するようにしました。
+- Shift+F9でも複数切り取りバッチを対応する各カーソルへ分配し、バッチ項目はすべて保持するようにしました。
+- F8後に複数カーソルを解除した場合は、F9を押すたびにスタック先頭の個別項目を貼り付けて消費します。
 
 ### 0.4.0
 

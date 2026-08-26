@@ -34,11 +34,7 @@ The `F5` keyword buffer and the `F8` / `F9` copy stack are **completely separate
 
 #### F5 — Capture a keyword and select the next match
 
-Pressing `F5` runs VS Code's built-in `editor.action.addSelectionToNextFindMatch` command.
-
-The keyword selected by that operation is also stored in the dedicated **F5 buffer**.
-
-This preserves the convenience of VS Code's standard “Add Selection to Next Find Match” operation while allowing the captured keyword to be reused later.
+Pressing `F5` captures the current selection, or the word at the cursor when nothing is selected, in the dedicated **F5 buffer**. Repeated presses add the next literal occurrence to the selections.
 
 #### Shift+F5 — Paste the captured keyword
 
@@ -46,12 +42,18 @@ Pressing `Shift+F5` inserts the keyword most recently captured with `F5` at the 
 
 If the selection created by `F5` is still active, it is cleared and the keyword is inserted immediately after it. Otherwise, an existing selection is replaced. With multiple cursors, the same keyword is inserted at every cursor.
 
+#### F6 / F7 — Find / Replace
+
+F6 and F7 use the standard VS Code Find/Replace behavior. Because F5 leaves the captured keyword selected without changing the internal Find state, VS Code can seed the Find input from that selection.
+
 ### F8 / Shift+F8 — Copy and cut
 
 These bindings follow the WZ Editor key layout.
 
 - `F8`: Push the selected range onto the copy stack and **cut** it. With no selection, cut the current line.
 - `Shift+F8`: Push the selected range onto the copy stack and **copy** it. With no selection, copy the current line.
+
+With multiple selected ranges, F8 stores one stack item per range. The ranges are cut bottom-to-top so that F9 and Shift+F9 can paste matching items into cursors top-to-bottom. F9 consumes those items; Shift+F9 retains them. If the extra cursors are dismissed first, each F9 pastes and consumes the next item.
 
 Text is stored in the extension's own stack. OS clipboard integration is enabled by default and can be disabled with `wzOperation.copyStack.osClipboardIntegration`.
 
@@ -114,7 +116,7 @@ If the per-item limit is greater than the total limit, the total limit becomes t
 
 When the total limit is exceeded, the oldest items are discarded automatically. If selected text exceeds the per-item limit, neither copying nor cutting is performed.
 
-For multiple-cursor pastes, the extension checks the logical data size by multiplying the item size by the number of cursors. A paste is not performed if one operation would exceed the configured **maximum total copy-stack size**.
+For a normal multiple-cursor paste, the extension checks the logical data size by multiplying the item size by the number of cursors. For an F8 multi-cut batch, it checks the sum of the matching items instead. A paste is not performed if one operation would exceed the configured **maximum total copy-stack size**.
 
 **The stack is currently volatile and kept only in memory.** Both the F5 buffer and copy stack are cleared when the VS Code Extension Host restarts.
 
@@ -200,11 +202,7 @@ CTRL+C, CTRL+V, CTRL+X etc.. 小指をCTRLに移動させる操作に嫌気が�
 
 #### F5 — キーワード取得 + 次の一致も選択
 
-`F5` を押すと、VS Code標準の `editor.action.addSelectionToNextFindMatch` を実行します。
-
-同時に、その結果として選択されたキーワードを **F5専用バッファ** へ保存します。
-
-VS Code標準の便利な「次の一致も選択」操作をそのまま使いつつ、取得したキーワードを後から再利用できます。
+`F5` を押すと、現在の選択範囲を、未選択の場合はカーソル位置の単語を **F5専用バッファ** へ保存します。繰り返し押すと、次の文字列一致を選択へ追加します。
 
 #### Shift+F5 — 取得したキーワードを貼り付け
 
@@ -212,12 +210,18 @@ VS Code標準の便利な「次の一致も選択」操作をそのまま使い�
 
 `F5` による選択がそのまま残っている場合は、選択を解除してキーワードの直後へ挿入します。それ以外の選択範囲がある場合はその範囲を置換し、複数カーソルがある場合は各カーソルへ同じキーワードを挿入します。
 
+#### F6 / F7 — 検索 / 置換
+
+F6とF7はVS Code標準の検索・置換動作を使用します。F5は内部の検索状態を変更せず、取得したキーワードを選択状態にするため、VS Codeがその選択範囲から検索欄へキーワードを設定できます。
+
 ### F8 / Shift+F8 — コピー・切り取り
 
 WZ Editorのキー配置に合わせています。
 
 - `F8`: 選択開始位置から選択終了位置までをコピースタックへ積んで **切り取り**。未選択時は現在行を1行切り取り
 - `Shift+F8`: 選択範囲をコピースタックへ積んで **コピー**。未選択時は現在行を1行コピー
+
+複数の選択範囲がある場合、F8は範囲ごとに1項目として保存します。下の範囲から順に切り取り、F9とShift+F9では上のカーソルから対応する項目を貼り付けます。F9は項目を消費し、Shift+F9は保持します。先に複数カーソルを解除した場合は、F9を押すたびに次の項目を貼り付けて消費します。
 
 本拡張専用のテキストスタックへ保存します。OSクリップボード連携は既定でONで、`wzOperation.copyStack.osClipboardIntegration`からOFFにできます。
 
@@ -280,7 +284,7 @@ F5専用バッファはOSクリップボードを使用しません。OSクリ�
 
 合計上限を超えた場合は、最も古い項目から自動的に破棄します。1項目の上限を超える選択内容は、コピーも切り取りも行いません。
 
-複数カーソルへの貼り付けでは、貼り付ける項目の容量とカーソル数を掛けた論理データ量を検査します。1回の貼り付けが設定された **コピースタック全体の最大サイズ** を超える場合は実行しません。
+通常の複数カーソル貼り付けでは、貼り付ける項目の容量とカーソル数を掛けた論理データ量を検査します。F8の複数切り取りバッチでは、対応する各項目の合計容量を検査します。1回の貼り付けが設定された **コピースタック全体の最大サイズ** を超える場合は実行しません。
 
 **現時点ではメモリ上に保持する揮発性スタックです。** F5専用バッファとコピースタックはいずれも、VS CodeのExtension Hostを再起動すると消去されます。
 

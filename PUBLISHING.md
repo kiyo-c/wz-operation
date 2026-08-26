@@ -42,6 +42,7 @@ VSIXはGit管理対象にしません。`.gitignore` の `*.vsix` で除外し�
 ## 公開前チェック
 
 - `F5` / `Shift+F5` が実機で正常動作する
+- 初回起動時またはDeveloper: Reload Window直後、F5で取得したキーワードが最初のF6/F7でも検索欄へ入る
 - `F8` / `Shift+F8` / `F9` / `Shift+F9` が実機で正常動作する
 - WindowsでIMEをONにしてShift+カーソルで複数行を選択したあと、`F8` が選択範囲全体を切り取る
 - `wzOperation.keyboard.turnImeOffWhenSelectionStarts` の有効・無効が即時反映される

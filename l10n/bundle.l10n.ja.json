@@ -9,5 +9,6 @@
   "WZ Keymap: The selection exceeds the total copy-stack capacity ({0} MiB) and cannot be saved.": "WZ Keymap: 選択範囲がコピースタックの合計容量上限（{0} MiB）を超えるため保存できません",
   "The setting \"editor.editContext\": true is specified in settings.json, so F8 cut cannot be used while the IME is active.": "設定(setting.json)で \"editor.editContext\": true が指定されているため、IME使用中はF8の切り取りを利用できません。",
   "Open Settings": "設定を開く",
+  "WZ Keymap: Select terminal text before copying it.": "WZ Keymap: コピーするターミナルの文字列を選択してください。",
   "The EditContext notification state was reset. It will be checked again the next time VS Code starts.": "EditContextの通知状態をリセットしました。次回のVS Code起動時に通知を再判定します。"
 }

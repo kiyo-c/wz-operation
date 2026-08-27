@@ -2,7 +2,7 @@
   "name": "wz-operation",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "publisher": "kiyoc",
   "author": {
     "name": "kiyoc"
@@ -52,7 +52,13 @@
   "l10n": "./l10n",
   "contributes": {
     "configurationDefaults": {
-      "editor.editContext": false
+      "editor.editContext": false,
+      "terminal.integrated.commandsToSkipShell": [
+        "wzOperation.copyTerminalSelectionToStack",
+        "wzOperation.terminalSelectionRequired",
+        "wzOperation.pasteAndPopStackToTerminal",
+        "wzOperation.pasteStackToTerminal"
+      ]
     },
     "commands": [
       {
@@ -98,6 +104,22 @@
       {
         "command": "wzOperation.resetEditContextWarningState",
         "title": "%command.resetEditContextWarningState.title%"
+      },
+      {
+        "command": "wzOperation.copyTerminalSelectionToStack",
+        "title": "%command.copyTerminalSelectionToStack.title%"
+      },
+      {
+        "command": "wzOperation.terminalSelectionRequired",
+        "title": "%command.terminalSelectionRequired.title%"
+      },
+      {
+        "command": "wzOperation.pasteAndPopStackToTerminal",
+        "title": "%command.pasteAndPopStackToTerminal.title%"
+      },
+      {
+        "command": "wzOperation.pasteStackToTerminal",
+        "title": "%command.pasteStackToTerminal.title%"
       }
     ],
     "configuration": {
@@ -235,6 +257,36 @@
         "command": "wzOperation.pasteStack",
         "key": "shift+f9",
         "when": "editorTextFocus"
+      },
+      {
+        "command": "wzOperation.copyTerminalSelectionToStack",
+        "key": "f8",
+        "when": "terminalFocus && terminalTextSelected"
+      },
+      {
+        "command": "wzOperation.copyTerminalSelectionToStack",
+        "key": "shift+f8",
+        "when": "terminalFocus && terminalTextSelected"
+      },
+      {
+        "command": "wzOperation.terminalSelectionRequired",
+        "key": "f8",
+        "when": "terminalFocus && !terminalTextSelected"
+      },
+      {
+        "command": "wzOperation.terminalSelectionRequired",
+        "key": "shift+f8",
+        "when": "terminalFocus && !terminalTextSelected"
+      },
+      {
+        "command": "wzOperation.pasteAndPopStackToTerminal",
+        "key": "f9",
+        "when": "terminalFocus"
+      },
+      {
+        "command": "wzOperation.pasteStackToTerminal",
+        "key": "shift+f9",
+        "when": "terminalFocus"
       }
     ]
   },

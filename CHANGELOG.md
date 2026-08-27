@@ -6,6 +6,12 @@
 
 ## English
 
+### 0.4.2
+
+- Added integrated-terminal support for F8, Shift+F8, F9, and Shift+F9. F8 and Shift+F8 copy selected terminal text to the copy stack and, when enabled, the OS clipboard. F9 sends and consumes the latest item, while Shift+F9 sends it without consuming it.
+- In the terminal, F8 and Shift+F8 display a status message when no text is selected.
+- Fixed terminal keybindings being passed through to Git Bash and PowerShell instead of being handled by the extension.
+
 ### 0.4.1
 
 - Reimplemented F5's next-match selection without invoking VS Code's internal Find controller. This removes the flashing Find-option buttons and keyword-dependent match-case/whole-word state. F6/F7 continue to use the unmodified standard VS Code commands and seed their input from the F5 selection.
@@ -98,6 +104,12 @@ Initial public release.
 <a id="日本語"></a>
 
 ## 日本語
+
+### 0.4.2
+
+- 統合ターミナルでF8、Shift+F8、F9、Shift+F9を利用できるようにしました。F8とShift+F8は選択文字列をコピースタックへ保存し、連携が有効ならOSクリップボードにもコピーします。F9は最新項目を入力して消費し、Shift+F9は消費せずに入力します。
+- ターミナルで文字列を選択せずにF8またはShift+F8を押した場合は、ステータスバーへ案内を表示します。
+- ターミナル用キーバインドが拡張機能で処理されず、Git BashやPowerShellへそのまま送信される問題を修正しました。
 
 ### 0.4.1
 

@@ -30,6 +30,12 @@ Tired of moving your little finger to Ctrl for Ctrl+C, Ctrl+V, Ctrl+X, and simil
 
 The `F5` keyword buffer and the `F8` / `F9` copy stack are **completely separate storage areas**.
 
+### Integrated terminal
+
+When the integrated terminal has focus, both `F8` and `Shift+F8` copy the selected terminal text to the copy stack without deleting it. When OS clipboard integration is enabled, the same text is also copied to the OS clipboard. If no terminal text is selected, a status-bar message is shown.
+
+`F9` sends the latest stack item to the active terminal and consumes it. `Shift+F9` sends the item without consuming it. When the stack is empty, the same OS clipboard fallback rules used by the editor apply. Terminal selections retain their line breaks, so pasting an item that ends with a line break may immediately execute it as a shell command.
+
 ### F5 / Shift+F5 — Keyword operations
 
 #### F5 — Capture a keyword and select the next match
@@ -197,6 +203,12 @@ CTRL+C, CTRL+V, CTRL+X etc.. 小指をCTRLに移動させる操作に嫌気が�
 | `F10` | WZ形式の範囲選択モードを切り替え |
 
 `F5` 系のキーワードバッファと `F8` / `F9` 系のコピースタックは **完全に別領域** です。
+
+### 統合ターミナル
+
+統合ターミナルにフォーカスがある場合、`F8`と`Shift+F8`はどちらも選択文字列を削除せずにコピースタックへ保存します。OSクリップボード連携が有効なら、同じ文字列をOSクリップボードにもコピーします。文字列が選択されていない場合は、ステータスバーへ案内を表示します。
+
+`F9`はスタックの最新項目をアクティブなターミナルへ入力して消費します。`Shift+F9`は項目を消費せずに入力します。スタックが空の場合は、エディターと同じOSクリップボードへのフォールバック規則が適用されます。ターミナルの選択文字列に含まれる改行はそのまま保持されるため、行末の改行を含む項目を貼り付けると、シェルのコマンドとして直ちに実行される場合があります。
 
 ### F5 / Shift+F5 — キーワード操作
 

@@ -464,6 +464,92 @@ function showClipStackStatus() {
   );
 }
 
+async function copyTerminalSelectionToStack() {
+  const previousClipboardText = await vscode.env.clipboard.readText();
+  await vscode.commands.executeCommand('workbench.action.terminal.copySelection');
+  const text = await vscode.env.clipboard.readText();
+  const item = prepareClipItem(text);
+
+  if (!item) {
+    await vscode.env.clipboard.writeText(previousClipboardText);
+    return;
+  }
+
+  pushPreparedClipItem(item);
+  if (osClipboardIntegrationEnabled) {
+    mirroredClipboardItem = item;
+  } else {
+    await vscode.env.clipboard.writeText(previousClipboardText);
+  }
+  showClipStackStatus();
+}
+
+function showTerminalSelectionRequiredMessage() {
+  vscode.window.setStatusBarMessage(
+    vscode.l10n.t('WZ Keymap: Select terminal text before copying it.'),
+    2000
+  );
+}
+
+async function pasteFromStackToTerminal(popAfterPaste) {
+  const terminal = vscode.window.activeTerminal;
+  if (!terminal) {
+    return;
+  }
+
+  const usesClipStack = !isClipStackEmpty();
+  let item;
+  if (usesClipStack) {
+    item = getLatestClipItem();
+  } else if (osClipboardIntegrationEnabled) {
+    const text = await vscode.env.clipboard.readText();
+    if (!text) {
+      vscode.window.setStatusBarMessage(
+        vscode.l10n.t('WZ Keymap: The copy stack and OS clipboard are empty.'),
+        2000
+      );
+      return;
+    }
+    item = { text, bytes: textBytes(text) };
+  } else {
+    vscode.window.setStatusBarMessage(
+      vscode.l10n.t('WZ Keymap: The copy stack is empty.'),
+      2000
+    );
+    return;
+  }
+
+  if (item.bytes > cachedClipStackLimits.totalBytes) {
+    vscode.window.setStatusBarMessage(
+      vscode.l10n.t(
+        'WZ Keymap: The paste exceeds the total copy-stack capacity ({0} MiB) and cannot be performed.',
+        cachedClipStackLimits.totalMiB
+      ),
+      3000
+    );
+    return;
+  }
+
+  terminal.sendText(item.text, false);
+
+  if (popAfterPaste) {
+    if (usesClipStack) {
+      const poppedItem = popLatestClipItem();
+      if (poppedItem === mirroredClipboardItem) {
+        const clipboardText = await vscode.env.clipboard.readText();
+        if (clipboardText === poppedItem.text) {
+          await vscode.env.clipboard.writeText('');
+        }
+        mirroredClipboardItem = undefined;
+      }
+    } else {
+      await vscode.env.clipboard.writeText('');
+      mirroredClipboardItem = undefined;
+    }
+  }
+  showClipStackStatus();
+}
+
 /**
  * コピースタックの最新項目を取得する。
  *
@@ -1249,6 +1335,22 @@ async function activate(context) {
     ),
     vscode.commands.registerCommand('wzOperation.pasteAndPopStack', pasteAndPopStack),
     vscode.commands.registerCommand('wzOperation.pasteStack', pasteStack),
+    vscode.commands.registerCommand(
+      'wzOperation.copyTerminalSelectionToStack',
+      copyTerminalSelectionToStack
+    ),
+    vscode.commands.registerCommand(
+      'wzOperation.terminalSelectionRequired',
+      showTerminalSelectionRequiredMessage
+    ),
+    vscode.commands.registerCommand(
+      'wzOperation.pasteAndPopStackToTerminal',
+      () => pasteFromStackToTerminal(true)
+    ),
+    vscode.commands.registerCommand(
+      'wzOperation.pasteStackToTerminal',
+      () => pasteFromStackToTerminal(false)
+    ),
     vscode.commands.registerCommand('wzOperation.showCopyStack', showCopyStack),
     vscode.commands.registerCommand(
       'wzOperation.pasteAndConsumeFromCopyStackList',

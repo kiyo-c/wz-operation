@@ -22,5 +22,5 @@
   "configuration.maxItemSizeMiB.title": "コピースタック1項目の最大サイズ",
   "configuration.maxItemSizeMiB.description": "コピースタック1項目の最大サイズ（MiB）。UTF-16換算で計算し、全体の上限より大きい場合は全体の上限を適用します。",
   "configuration.osClipboardIntegration.title": "OSクリップボード連携",
-  "configuration.osClipboardIntegration.description": "有効な場合、F8 / Shift+F8でOSクリップボードにもコピーし、コピースタックが空のF9系操作ではOSクリップボードへフォールバックします。"
+  "configuration.osClipboardIntegration.description": "有効な場合、F8 / Shift+F8でOSクリップボードにもコピーします。F9系操作では他のアプリがコピーした文字列を優先し、コピースタックが空の場合もOSクリップボードを使用します。"
 }

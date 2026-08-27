@@ -2,7 +2,7 @@
   "name": "wz-operation",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "publisher": "kiyoc",
   "author": {
     "name": "kiyoc"

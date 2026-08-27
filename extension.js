@@ -464,6 +464,42 @@ function showClipStackStatus() {
   );
 }
 
+async function getPreferredPasteSource() {
+  let clipboardText = '';
+  if (osClipboardIntegrationEnabled) {
+    clipboardText = await vscode.env.clipboard.readText();
+    const isExternalClipboardText = clipboardText && (
+      !mirroredClipboardItem || clipboardText !== mirroredClipboardItem.text
+    );
+    if (isExternalClipboardText) {
+      return {
+        usesClipStack: false,
+        item: { text: clipboardText, bytes: textBytes(clipboardText) }
+      };
+    }
+  }
+
+  if (!isClipStackEmpty()) {
+    return { usesClipStack: true, item: getLatestClipItem() };
+  }
+
+  if (clipboardText) {
+    return {
+      usesClipStack: false,
+      item: { text: clipboardText, bytes: textBytes(clipboardText) }
+    };
+  }
+
+  return undefined;
+}
+
+function showNoPasteSourceMessage() {
+  const message = osClipboardIntegrationEnabled
+    ? 'WZ Keymap: The copy stack and OS clipboard are empty.'
+    : 'WZ Keymap: The copy stack is empty.';
+  vscode.window.setStatusBarMessage(vscode.l10n.t(message), 2000);
+}
+
 async function copyTerminalSelectionToStack() {
   const previousClipboardText = await vscode.env.clipboard.readText();
   await vscode.commands.executeCommand('workbench.action.terminal.copySelection');
@@ -497,27 +533,12 @@ async function pasteFromStackToTerminal(popAfterPaste) {
     return;
   }
 
-  const usesClipStack = !isClipStackEmpty();
-  let item;
-  if (usesClipStack) {
-    item = getLatestClipItem();
-  } else if (osClipboardIntegrationEnabled) {
-    const text = await vscode.env.clipboard.readText();
-    if (!text) {
-      vscode.window.setStatusBarMessage(
-        vscode.l10n.t('WZ Keymap: The copy stack and OS clipboard are empty.'),
-        2000
-      );
-      return;
-    }
-    item = { text, bytes: textBytes(text) };
-  } else {
-    vscode.window.setStatusBarMessage(
-      vscode.l10n.t('WZ Keymap: The copy stack is empty.'),
-      2000
-    );
+  const source = await getPreferredPasteSource();
+  if (!source) {
+    showNoPasteSourceMessage();
     return;
   }
+  const { usesClipStack, item } = source;
 
   if (item.bytes > cachedClipStackLimits.totalBytes) {
     vscode.window.setStatusBarMessage(
@@ -1078,11 +1099,18 @@ async function pasteFromStack(popAfterPaste) {
     return;
   }
 
+  const source = await getPreferredPasteSource();
+  if (!source) {
+    showNoPasteSourceMessage();
+    return;
+  }
+
   // Distribute a multi-cut batch from the top cursor downward. F9 consumes
   // the items after a successful edit; Shift+F9 retains the complete batch.
   const latestItem = getLatestClipItem();
   if (
     editor.selections.length > 1 &&
+    source.usesClipStack &&
     latestItem &&
     latestItem.batchId !== undefined
   ) {
@@ -1140,29 +1168,9 @@ async function pasteFromStack(popAfterPaste) {
   }
 
   // スタックを優先し、空の場合だけOSクリップボードへフォールバックする。
-  const usesClipStack = !isClipStackEmpty();
+  const { usesClipStack, item } = source;
 
   // OSクリップボードの内容はスタックへ追加せず、今回の貼り付けだけに使う。
-  let item;
-  if (usesClipStack) {
-    item = getLatestClipItem();
-  } else if (osClipboardIntegrationEnabled) {
-    const text = await vscode.env.clipboard.readText();
-    if (!text) {
-      vscode.window.setStatusBarMessage(
-        vscode.l10n.t('WZ Keymap: The copy stack and OS clipboard are empty.'),
-        2000
-      );
-      return;
-    }
-    item = { text, bytes: textBytes(text) };
-  } else {
-    vscode.window.setStatusBarMessage(
-      vscode.l10n.t('WZ Keymap: The copy stack is empty.'),
-      2000
-    );
-    return;
-  }
 
   const edited = await pasteClipItem(item);
 

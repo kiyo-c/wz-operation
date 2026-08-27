@@ -6,6 +6,10 @@
 
 ## English
 
+### 0.4.3
+
+- When OS clipboard integration is enabled, text copied in another application now takes priority over existing copy-stack items for F9 and Shift+F9 in both editors and integrated terminals. F9 clears that external clipboard text after pasting, while Shift+F9 retains it.
+
 ### 0.4.2
 
 - Added integrated-terminal support for F8, Shift+F8, F9, and Shift+F9. F8 and Shift+F8 copy selected terminal text to the copy stack and, when enabled, the OS clipboard. F9 sends and consumes the latest item, while Shift+F9 sends it without consuming it.
@@ -104,6 +108,10 @@ Initial public release.
 <a id="日本語"></a>
 
 ## 日本語
+
+### 0.4.3
+
+- OSクリップボード連携が有効な場合、他のアプリでコピーされた文字列を、エディターと統合ターミナルのF9／Shift+F9で既存のコピースタックより優先するようにしました。F9は貼り付け後に外部クリップボードを消去し、Shift+F9は保持します。
 
 ### 0.4.2
 

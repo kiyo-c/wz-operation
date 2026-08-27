@@ -24,8 +24,8 @@ Tired of moving your little finger to Ctrl for Ctrl+C, Ctrl+V, Ctrl+X, and simil
 | `F7` | Open the editor Replace control (same as Ctrl+H) |
 | `F8` | Cut to the copy stack; also copy to the OS clipboard when integration is enabled |
 | `Shift+F8` | Copy to the copy stack; also copy to the OS clipboard when integration is enabled |
-| `F9` | Paste and remove the top stack item; when empty, fall back to the OS clipboard if integration is enabled |
-| `Shift+F9` | Paste and retain the top stack item; when empty, fall back to the OS clipboard if integration is enabled |
+| `F9` | Paste and consume the preferred source; external clipboard text takes priority when integration is enabled |
+| `Shift+F9` | Paste and retain the preferred source; external clipboard text takes priority when integration is enabled |
 | `F10` | Toggle WZ-style selection mode |
 
 The `F5` keyword buffer and the `F8` / `F9` copy stack are **completely separate storage areas**.
@@ -34,7 +34,7 @@ The `F5` keyword buffer and the `F8` / `F9` copy stack are **completely separate
 
 When the integrated terminal has focus, both `F8` and `Shift+F8` copy the selected terminal text to the copy stack without deleting it. When OS clipboard integration is enabled, the same text is also copied to the OS clipboard. If no terminal text is selected, a status-bar message is shown.
 
-`F9` sends the latest stack item to the active terminal and consumes it. `Shift+F9` sends the item without consuming it. When the stack is empty, the same OS clipboard fallback rules used by the editor apply. Terminal selections retain their line breaks, so pasting an item that ends with a line break may immediately execute it as a shell command.
+`F9` sends the preferred paste item to the active terminal and consumes it when applicable. `Shift+F9` sends the item without consuming it. When OS clipboard integration is enabled and another application has placed different text on the clipboard, that external text takes priority over existing stack items. Terminal selections retain their line breaks, so pasting an item that ends with a line break may immediately execute it as a shell command.
 
 ### F5 / Shift+F5 — Keyword operations
 
@@ -88,9 +88,9 @@ For example, after copying `AAA`, `BBB`, and `CCC` in that order, `CCC` is at th
 
 Pressing `Shift+F9` repeatedly continues to paste `CCC`. Pressing `F9` pastes and removes `CCC`, so the next `F9` pastes `BBB`.
 
-When OS clipboard integration is enabled and the copy stack is empty, both `F9` and `Shift+F9` paste from the operating system clipboard. After a successful paste, `F9` clears the operating system clipboard while `Shift+F9` retains it. Neither operation adds the clipboard content to the copy stack. When integration is disabled, an empty stack does not fall back to the OS clipboard.
+When OS clipboard integration is enabled and another application copies text that differs from the item most recently mirrored by this extension, both `F9` and `Shift+F9` prioritize that external clipboard text over existing stack items. They also use the OS clipboard when the stack is empty. After a successful paste, `F9` clears clipboard-sourced text while `Shift+F9` retains it. Neither operation adds clipboard content to the copy stack. When integration is disabled, only the copy stack is used.
 
-When `F9` consumes a stack item that the extension most recently mirrored to the operating system clipboard, that clipboard text is also cleared if it is still unchanged. Different clipboard content copied afterward is preserved.
+When `F9` consumes a stack item that the extension most recently mirrored to the operating system clipboard, that clipboard text is also cleared if it is still unchanged.
 
 Run `WZ Keymap: Paste from Copy Stack List` from the Command Palette to paste a selected item without removing it. Use `WZ Keymap: Paste and Consume from Copy Stack List` to remove the selected item only after a successful paste. Both lists are displayed newest-first. `WZ Keymap: Clear Copy Stack` removes all items and resets its used capacity to zero.
 
@@ -198,8 +198,8 @@ CTRL+C, CTRL+V, CTRL+X etc.. 小指をCTRLに移動させる操作に嫌気が�
 | `F7` | エディターの置換窓を開く（Ctrl+Hと同等） |
 | `F8` | コピースタックへ切り取り。連携ONならOSクリップボードにもコピー |
 | `Shift+F8` | コピースタックへコピー。連携ONならOSクリップボードにもコピー |
-| `F9` | スタック先頭を貼り付けて消費。空かつ連携ONならOSクリップボードへフォールバック |
-| `Shift+F9` | スタック先頭を貼り付けて保持。空かつ連携ONならOSクリップボードへフォールバック |
+| `F9` | 優先対象を貼り付けて消費。連携ONなら他のアプリのクリップボードを優先 |
+| `Shift+F9` | 優先対象を貼り付けて保持。連携ONなら他のアプリのクリップボードを優先 |
 | `F10` | WZ形式の範囲選択モードを切り替え |
 
 `F5` 系のキーワードバッファと `F8` / `F9` 系のコピースタックは **完全に別領域** です。
@@ -208,7 +208,7 @@ CTRL+C, CTRL+V, CTRL+X etc.. 小指をCTRLに移動させる操作に嫌気が�
 
 統合ターミナルにフォーカスがある場合、`F8`と`Shift+F8`はどちらも選択文字列を削除せずにコピースタックへ保存します。OSクリップボード連携が有効なら、同じ文字列をOSクリップボードにもコピーします。文字列が選択されていない場合は、ステータスバーへ案内を表示します。
 
-`F9`はスタックの最新項目をアクティブなターミナルへ入力して消費します。`Shift+F9`は項目を消費せずに入力します。スタックが空の場合は、エディターと同じOSクリップボードへのフォールバック規則が適用されます。ターミナルの選択文字列に含まれる改行はそのまま保持されるため、行末の改行を含む項目を貼り付けると、シェルのコマンドとして直ちに実行される場合があります。
+`F9`は優先対象となる項目をアクティブなターミナルへ入力し、該当する場合は消費します。`Shift+F9`は項目を消費せずに入力します。OSクリップボード連携が有効で、他のアプリが異なる文字列をクリップボードへコピーした場合は、その外部文字列を既存のスタック項目より優先します。ターミナルの選択文字列に含まれる改行はそのまま保持されるため、行末の改行を含む項目を貼り付けると、シェルのコマンドとして直ちに実行される場合があります。
 
 ### F5 / Shift+F5 — キーワード操作
 
@@ -262,9 +262,9 @@ IME使用中も本拡張の`F8`切り取りを利用する場合は、`editor.ed
 
 `Shift+F9` を何度押しても `CCC` が貼り付けられます。`F9` を押すと `CCC` を貼り付けたあとスタックから消費されるため、次の `F9` では `BBB` が貼り付けられます。
 
-OSクリップボード連携がONでコピースタックが空の場合、`F9` と `Shift+F9` はどちらもOSクリップボードから貼り付けます。貼り付け成功後、`F9` はOSクリップボードを消去し、`Shift+F9` は保持します。どちらもOSクリップボードの内容をコピースタックへ追加しません。連携がOFFの場合、空のスタックからOSクリップボードへはフォールバックしません。
+OSクリップボード連携がONで、他のアプリが本拡張から最後に同期した項目とは異なる文字列をコピーした場合、`F9`と`Shift+F9`は既存のコピースタックよりその外部クリップボードを優先します。スタックが空の場合もOSクリップボードを使用します。貼り付け成功後、`F9`はクリップボード由来の文字列を消去し、`Shift+F9`は保持します。どちらもクリップボードの内容をコピースタックへ追加しません。連携がOFFの場合はコピースタックだけを使用します。
 
-`F9`で消費するスタック項目が、本拡張から最後にOSクリップボードへ同期した項目であり、その内容が変わっていない場合は、OSクリップボード側の同じテキストも消去します。その後にコピーされた異なる内容は保持します。
+`F9`で消費するスタック項目が、本拡張から最後にOSクリップボードへ同期した項目であり、その内容が変わっていない場合は、OSクリップボード側の同じテキストも消去します。
 
 コマンドパレットから`WZ Keymap: コピースタック一覧から貼り付け`を実行すると、選択項目を削除せずに貼り付けます。`WZ Keymap: コピースタック一覧から貼り付けて消費`では、貼り付け成功後に選択項目を削除します。どちらもスタック項目を新しい順に一覧表示します。`WZ Keymap: コピースタックをクリア`では全履歴を削除し、使用容量を0へ戻します。
 
